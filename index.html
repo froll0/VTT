@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>Tavolo da Gioco Virtuale</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://unpkg.com/konva@8/konva.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container" id="main-content">
+
+        <div class="sidebar-column">
+
+            <section class="widget" id="login-widget">
+                <h3>Accesso</h3>
+                <div id="name-area" class="input-group">
+                    <input id="nome" type="text" placeholder="Il tuo nome">
+                    <button id="set-nome">Imposta</button>
+                </div>
+                <div class="input-group">
+                    <label id="gm-check-label">
+                        <input type="checkbox" id="gm-check">
+                        <span>Voglio fare il GM</span>
+                    </label>
+                </div>
+            </section>
+            
+            <section class="widget" id="tools-widget">
+                <div class="tab-nav">
+                    <button class="tab-button active" data-tab="turn-order" title="Ordine di Turno"><i class="fa-solid fa-list-ol"></i></button>
+                    <button class="tab-button" data-tab="notes" title="Note"><i class="fa-solid fa-note-sticky"></i></button>
+                    <button class="tab-button" data-tab="macros" title="Macro Dadi"><i class="fa-solid fa-scroll"></i></button>
+                    <button class="tab-button" data-tab="vtt" id="tab-btn-vtt" title="VTT Tools"><i class="fa-solid fa-map"></i></button>
+                    <button class="tab-button" data-tab="settings" title="Impostazioni"><i class="fa-solid fa-gear"></i></button>
+                    <button class="tab-button" data-tab="admin" id="tab-btn-admin" title="Admin GM"><i class="fa-solid fa-shield"></i></button>
+                </div>
+                
+                <div class="tab-content">
+                    
+                    <div class="tab-pane active" id="tab-turn-order">
+                        <h3>Turno: <span id="turn-counter">1</span></h3>
+                        <ol id="turn-order-list"></ol>
+                        <div id="gm-turn-controls">
+                            <div class="input-group">
+                                <input id="npc-name" type="text" placeholder="Aggiungi partecipante">
+                                <input id="npc-value" type="number" placeholder="Iniz." value="10">
+                                <button id="add-npc-turn" title="Aggiungi"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="button-group">
+                                <button id="next-turn-btn">Turno <i class="fa-solid fa-forward"></i></button>
+                                <button id="reset-values-btn">Azzera Init.</button>
+                                <button id="reset-turn-btn">Resetta Contatore</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane" id="tab-notes">
+                        <div class="notes-controls">
+                            <select id="notes-select"></select>
+                            <button id="add-note-btn" title="Nuova nota"><i class="fa-solid fa-plus"></i></button>
+                            <button id="delete-note-btn" class="note-delete-btn" title="Elimina nota"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <label><input type="checkbox" id="note-is-private"> Nota Privata</label>
+                        <textarea id="notes-textarea" placeholder="Scrivi qui..."></textarea>
+                    </div>
+                    
+                    <div class="tab-pane" id="tab-macros">
+                        <ul id="macro-list"><li>Nessuna macro salvata.</li></ul>
+                        <div class="input-group" id="add-macro-group">
+                            <input type="text" id="macro-name" placeholder="Nome Macro">
+                            <input type="text" id="macro-command" placeholder="Comando Dado">
+                            <button id="add-macro-btn"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-vtt">
+                        <div class="vtt-controls-grid"> 
+                            <div class="vtt-control-section"> 
+                                <h4>Strumento Attivo</h4>
+                                <div class="tool-selection-grid" id="vtt-tool-selection">
+                                    <label><input type="radio" name="vtt-tool" value="select" checked> <i class="fa-solid fa-arrow-pointer"></i> Sel.</label>
+                                    <label><input type="radio" name="vtt-tool" value="ruler"> <i class="fa-solid fa-ruler"></i> Misura</label>
+                                    <label><input type="radio" name="vtt-tool" value="ping"> <i class="fa-solid fa-bullseye"></i> Ping</label>
+                                    <label><input type="radio" name="vtt-tool" value="freehand"> <i class="fa-solid fa-pencil"></i> Dis.</label>
+                                    <label><input type="radio" name="vtt-tool" value="rect"> <i class="fa-regular fa-square"></i> Rett.</label>
+                                    <label><input type="radio" name="vtt-tool" value="circle"> <i class="fa-regular fa-circle"></i> Cerchio</label>
+                                </div>
+                            </div>
+
+                            <div class="vtt-control-section gm-only" id="vtt-drawing-options">
+                                <div class="input-group">
+                                    <label for="drawing-color">Colore:</label>
+                                    <input type="color" id="drawing-color" value="#ff0000">
+                                    <label for="drawing-stroke-width">Spess.:</label> <input type="number" id="drawing-stroke-width" value="2" min="1" max="20">
+                                </div>
+                                <button id="clear-drawings-btn" class="admin-button"><i class="fa-solid fa-eraser"></i> Cancella Disegni</button>
+                            </div>
+                            
+                            <div class="vtt-control-section gm-only" id="vtt-map-options">
+                                <h4>Mappa e Griglia</h4>
+                                <div class="input-group">
+                                    <label for="vtt-map-url">URL Mappa:</label>
+                                    <input type="url" id="vtt-map-url" placeholder="Incolla URL immagine">
+                                </div>
+                                <button id="vtt-set-map">Imposta Mappa</button>
+                                <div class="input-group">
+                                    <label for="grid-scale">Scala:</label>
+                                    <input type="number" id="grid-scale" value="1.5" step="0.1" min="0.1">
+                                    <label for="grid-unit">Unità:</label>
+                                    <input type="text" id="grid-unit" value="m">
+                                </div>
+                                <button id="save-grid-scale">Salva Scala</button>
+                            </div>
+                            
+                            <div class="vtt-control-section gm-only" id="vtt-token-options">
+                                <h4>Aggiungi Token</h4>
+                                <div class="input-group">
+                                    <label for="vtt-token-name">Nome:</label>
+                                    <input type="text" id="vtt-token-name" placeholder="Nome Token">
+                                </div>
+                                <div class="input-group">
+                                    <label for="vtt-token-url">URL Img:</label> <input type="url" id="vtt-token-url" placeholder="URL immagine (opz.)">
+                                </div>
+                                <div class="input-group">
+                                    <label for="vtt-token-color">Colore:</label>
+                                    <input type="color" id="vtt-token-color" value="#ff0000">
+                                </div>
+                                <div class="input-group">
+                                    <label for="vtt-token-owner">Prop.:</label> <select id="vtt-token-owner">
+                                        <option value="">Nessuno/GM</option>
+                                    </select>
+                                </div>
+                                <button id="vtt-add-token">Aggiungi Token</button>
+                                <small><i>Posiziona cliccando sulla mappa. Doppio click su token/disegno (GM) per eliminare.</i></small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane" id="tab-settings">
+                        <div class="input-group">
+                            <label for="user-color">Colore Nome:</label>
+                            <input type="color" id="user-color" value="#000000">
+                            <button id="save-color"><i class="fa-solid fa-check"></i></button>
+                        </div>
+                        <div class="input-group">
+                            <label for="page-bg-color">Sfondo Pagina:</label>
+                            <input type="color" id="page-bg-color" value="#f4f4f4">
+                            <button id="save-page-bg"><i class="fa-solid fa-check"></i></button>
+                        </div>
+                        <div class="input-group">
+                            <label for="chat-bg-color">Sfondo Chat:</label>
+                            <input type="color" id="chat-bg-color" value="#ffffff">
+                            <button id="save-chat-bg"><i class="fa-solid fa-check"></i></button>
+                        </div>
+                        <div class="input-group">
+                            <button id="theme-toggle" style="width: 100%;">Tema <i class="fa-solid fa-circle-half-stroke"></i></button>
+                        </div>
+                        <div class="input-group">
+                            <button id="request-gm-btn" style="width: 100%;">Diventa GM</button>
+                        </div>
+                        <div class="button-group full-width">
+                            <button id="clear-local-btn" class="admin-button">Resetta Dati Locali (Logout)</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane" id="tab-admin">
+                        <h4 id="admin-music-title">Musica/Ambiance</h4>
+                        <div id="music-controls">
+                            <div class="input-group">
+                                <input type="url" id="music-url" placeholder="Incolla URL audio (mp3, wav, ogg)">
+                            </div>
+                            <div class="button-group-3">
+                                <button id="music-play"><i class="fa-solid fa-play"></i></button>
+                                <button id="music-pause"><i class="fa-solid fa-pause"></i></button>
+                                <button id="music-stop"><i class="fa-solid fa-stop"></i></button>
+                            </div>
+                        </div>
+                        
+                        <h4>Gestione Dati</h4>
+                        <div class="button-group">
+                            <button id="delete-texts-btn" class="admin-button">Elimina Messaggi</button>
+                            <button id="delete-rolls-btn" class="admin-button">Elimina Tiri</button>
+                        </div>
+                        <div class="button-group full-width">
+                            <button id="abdicate-gm-btn" class="admin-button">Cedi Ruolo GM</button>
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>
+
+        </div>
+
+        <div class="vtt-column">
+            <div id="vtt-container">
+            </div>
+        </div>
+
+        <div class="main-column">
+            <section class="widget" id="presence-widget">
+                <div id="presence-list"></div>
+            </section>
+            
+            <div id="pinned-message-bar">
+                <span id="pin-content"></span>
+                <button id="unpin-button" title="Rimuovi pin"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="chatbox"></div>
+
+            <div id="controls-area" class="widget">
+                <div id="visibility-controls">
+                    <label><input type="radio" name="visibility" value="public" checked><span>Pubblico</span></label>
+                    <label><input type="radio" name="visibility" value="gm" id="gm-radio"><span>Solo GM</span></label>
+                    <label><input type="radio" name="visibility" value="private"><span>Privato</span></label>
+                </div>
+                
+                <div class="input-group">
+                    <input id="chat-message" type="text" placeholder="Scrivi un messaggio...">
+                    <button id="send-message"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+                
+                <div id="macro-controls" class="input-group">
+                    <select id="macro-select">
+                        <option value="" disabled selected>-- Macro --</option>
+                    </select>
+                    <button id="roll-macro-btn"><i class="fa-solid fa-scroll"></i></button>
+                </div>
+                
+                <div id="dice-builder" class="input-group">
+                    <input id="dice-qty" type="number" value="1" min="1">
+                    <span>d</span>
+                    <select id="dice-faces"> <option value="4">4</option><option value="6">6</option><option value="8">8</option> <option value="10">10</option><option value="12">12</option> <option value="20" selected>20</option><option value="100">100</option> </select>
+                    <input id="dice-mod" type="number" value="0">
+                    <button id="roll-builder"><i class="fa-solid fa-dice-d20"></i></button>
+                </div>
+                
+                <div class="input-group">
+                    <input id="custom-command" type="text" placeholder="Comando (es. 4d6kh3, 3d6!)">
+                    <button id="roll-custom"><i class="fa-solid fa-dice"></i></button>
+                </div>
+                
+                <div id="roll-controls">
+                    <label><input type="checkbox" id="is-turn-roll"> Tiro per turno</label>
+                </div>
+            </div>
+        </div> 
+        
+    </div>
+
+    <div id="gm-request-modal">
+        <div id="gm-request-content">
+            <p><strong id="requester-name"></strong> vuole diventare il GM.</p>
+            <p>Accetti il trasferimento del ruolo?</p>
+            <button id="gm-accept">Accetta</button>
+            <button id="gm-refuse">Rifiuta</button>
+        </div>
+    </div>
+    
+    <audio id="audio-player"></audio>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.10/purify.min.js"></script>
+    <script src="https://unpkg.com/konva@8/konva.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
