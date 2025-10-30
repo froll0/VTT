@@ -286,7 +286,7 @@ label {
     border: 1px solid var(--colore-bordo);
     border-radius: 6px;
     box-shadow: var(--shadow);
-    cursor: default;
+    cursor: grab;
 
     &.drawing,
     &.measuring {

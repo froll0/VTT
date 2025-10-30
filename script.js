@@ -151,6 +151,9 @@
         let currentShape = null; // Konva shape in corso di disegno
         let measurementLine = null; // NUOVO per misura
         let measurementText = null; // NUOVO per misura
+        const scaleBy = 1.05; // Fattore di zoom (più è alto, più è veloce)
+        const minScale = 0.1; // Massimo zoom-out
+        const maxScale = 4.0; // Massimo zoom-in
         
         // --- 2. FUNZIONI HELPER (Colori, Dadi, Timestamp) ---
         
@@ -237,7 +240,15 @@
                 // Costruisci stringa risultato
                 let testoTiri = tiri.join(', ');
                 if (tiriScartati.length > 0) {
-                     testoTiri = tiri.map(t => tiriScartati.includes(t) ? `~~${t}~~` : t).join(', ');
+                    let tiriScartatiTemp = [...tiriScartati]; 
+                    testoTiri = tiri.map(t => {
+                        const index = tiriScartatiTemp.indexOf(t);
+                        if (index > -1) {
+                            tiriScartatiTemp.splice(index, 1); // Rimuovi questo dado
+                            return `~~${t}~~`;
+                        }
+                        return t;
+                    }).join(', ');
                 }
                 let testoKeep = keepHighest ? `kh${keepHighest}` : (keepLowest ? `kl${keepLowest}` : '');
                 let testoExplode = explode ? '!' : '';
@@ -279,17 +290,40 @@
         }
 
         function loadMapBackground(url) {
-            if (!mapLayer) return;
+            if (!mapLayer || !stage) return;
             mapLayer.destroyChildren();
+
             if (!url) {
                  stage.batchDraw();
                  return;
             }
+
             Konva.Image.fromURL(url, (img) => {
-                img.setAttrs({ x: 0, y: 0, width: stage.width(), height: stage.height() });
+                const stageW = stage.width();
+                const stageH = stage.height();
+                const imgW = img.width();
+                const imgH = img.height();
+
+                // Calcola il rapporto per "contenere" l'immagine mantenendo l'aspect ratio
+                const ratio = Math.min(stageW / imgW, stageH / imgH);
+
+                const newW = imgW * ratio;
+                const newH = imgH * ratio;
+
+                // Centra l'immagine nello stage
+                const newX = (stageW - newW) / 2;
+                const newY = (stageH - newH) / 2;
+
+                img.setAttrs({ 
+                    x: newX, 
+                    y: newY, 
+                    width: newW, 
+                    height: newH 
+                });
+
                 mapLayer.add(img);
                 img.moveToBottom();
-                stage.batchDraw();
+                mapLayer.batchDraw(); // Usa batchDraw sul layer
             });
         }
         
@@ -487,6 +521,7 @@
                  container: 'vtt-container',
                  width: containerWidth,
                  height: containerHeight,
+                 draggable: true
              });
 
              mapLayer = new Konva.Layer();
@@ -667,28 +702,78 @@
                     drawingLayer.batchDraw();
                     currentShape = null;
                 }
+
+                stage.on('mousedown.pan', (e) => {
+                    // Attiva solo se lo strumento selezionato è 'select' e stiamo premendo sullo stage
+                    if (currentDrawingTool === 'select' && e.target === stage) {
+                        vttContainer.style.cursor = 'grabbing';
+                    }
+                });
+                // Rimetti il cursore "grab" quando rilasciamo
+                stage.on('mouseup.pan', (e) => {
+                    if (currentDrawingTool === 'select') {
+                        vttContainer.style.cursor = 'grab';
+                    }
+                });
+                
+                // Listener per lo ZOOM (rotellina del mouse)
+                stage.on('wheel.zoom', (e) => {
+                    e.evt.preventDefault(); // Impedisce lo scroll della pagina
+                    
+                    const oldScale = stage.scaleX();
+                    const pointer = stage.getPointerPosition();
+
+                    if (!pointer) return; // Uscita di sicurezza se il puntatore non è sullo stage
+
+                    // Calcola dove si trova il puntatore relativo alla mappa (indipendente da zoom/pan)
+                    const mousePointTo = {
+                        x: (pointer.x - stage.x()) / oldScale,
+                        y: (pointer.y - stage.y()) / oldScale,
+                    };
+
+                    // Determina la direzione dello zoom e la nuova scala
+                    const direction = e.evt.deltaY > 0 ? -1 : 1; // -1 zoom out, 1 zoom in
+                    let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+                    // Applica i limiti di zoom min/max
+                    newScale = Math.max(minScale, Math.min(maxScale, newScale));
+                    
+                    if (newScale === oldScale) return; // Niente da fare se siamo già ai limiti
+
+                    // Calcola la nuova posizione dello stage per mantenere il punto sotto il mouse
+                    const newPos = {
+                        x: pointer.x - mousePointTo.x * newScale,
+                        y: pointer.y - mousePointTo.y * newScale,
+                    };
+
+                    stage.scale({ x: newScale, y: newScale });
+                    stage.position(newPos);
+                    stage.batchDraw(); // Ridisegna lo stage
+                });
             });
 
             window.addEventListener('resize', () => {
-                  // Usa requestAnimationFrame per eseguire il resize dopo il reflow del browser
-                  requestAnimationFrame(() => {
-                      if (stage && vttContainer) {
-                         const newWidth = vttContainer.offsetWidth;
-                         const newHeight = vttContainer.offsetHeight;
-                         if (newWidth > 0 && newHeight > 0) {
-                             stage.size({ width: newWidth, height: newHeight });
-                             if(gridLayer) {
-                                 gridLayer.clip({ x: 0, y: 0, width: newWidth, height: newHeight });
-                                 drawGrid();
-                             }
-                             if(mapLayer && vttMapRef.snapshot?.val()?.backgroundUrl) {
-                                 loadMapBackground(vttMapRef.snapshot.val().backgroundUrl);
-                             }
-                             console.log("Konva Stage ridimensionato (on resize):", newWidth, newHeight);
-                         }
-                      }
-                  });
-             });
+                requestAnimationFrame(() => {
+                    if (stage && vttContainer) {
+                        const newWidth = vttContainer.offsetWidth;
+                        const newHeight = vttContainer.offsetHeight;
+                        if (newWidth > 0 && newHeight > 0) {
+                            stage.size({ width: newWidth, height: newHeight });
+                            if (gridLayer) {
+                                gridLayer.clip({ x: 0, y: 0, width: newWidth, height: newHeight });
+                                drawGrid();
+                            }
+                            if (mapLayer) {
+                                vttMapRef.once('value', (snapshot) => {
+                                    const mapData = snapshot.val() || {};
+                                    loadMapBackground(mapData.backgroundUrl);
+                                });
+                            }
+                            console.log("Konva Stage ridimensionato (on resize):", newWidth, newHeight);
+                        }
+                    }
+                });
+            });
         }
         
         // --- 3. LOGICA DI IMPOSTAZIONE (Nome, GM, Tema, Sessione) ---
@@ -1263,17 +1348,43 @@
             renderPresenceList();
         });
         
-        usersRef.on('value', (snapshot) => {
-            userColors = {};
-            const users = snapshot.val();
-            if(users) {
-                for (const [name, data] of Object.entries(users)) {
-                    userColors[name] = data.color;
-                }
-            }
-            document.querySelectorAll('.nome-utente').forEach(el => {
-                el.style.color = getUserColor(el.dataset.name);
+        // Sostituisce il vecchio usersRef.on('value')
+        usersRef.on('child_added', (snapshot) => {
+            const name = snapshot.key; // Se usi l'UID, questo sarà l'UID
+            const data = snapshot.val();
+            // Assumendo che tu salvi il 'name' leggibile dentro il nodo utente
+            const displayName = data.name || name; 
+            userColors[displayName] = data.color;
+
+            // Aggiorna solo gli elementi esistenti
+            document.querySelectorAll(`.nome-utente[data-name="${displayName}"]`).forEach(el => {
+                el.style.color = data.color;
             });
+            // Non ridisegnare tutto, ma aggiorna le liste che dipendono dagli utenti
+            renderTurnOrderList(); 
+            renderPresenceList();
+        });
+
+        usersRef.on('child_changed', (snapshot) => {
+            const name = snapshot.key;
+            const data = snapshot.val();
+            const displayName = data.name || name;
+            userColors[displayName] = data.color;
+
+            // Aggiorna solo gli elementi esistenti
+            document.querySelectorAll(`.nome-utente[data-name="${displayName}"]`).forEach(el => {
+                el.style.color = data.color;
+            });
+            renderTurnOrderList();
+            renderPresenceList();
+        });
+
+        usersRef.on('child_removed', (snapshot) => {
+            const name = snapshot.key;
+            const displayName = snapshot.val().name || name;
+            delete userColors[displayName];
+
+            // Aggiorna le liste
             renderTurnOrderList();
             renderPresenceList();
         });
@@ -1594,27 +1705,33 @@
         
         drawingToolRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
-                // Non serve check isGM qui, lo strumento può essere selezionato da tutti
-                // Saranno le azioni (disegno vs misura vs ping) a controllare i permessi
                 currentDrawingTool = e.target.value;
-                
-                // Aggiorna cursore VTT
-                switch(currentDrawingTool) {
-                    case 'select': vttContainer.style.cursor = 'default'; break;
-                    case 'ruler': vttContainer.style.cursor = 'crosshair'; break;
-                    case 'ping': vttContainer.style.cursor = 'pointer'; break;
-                    case 'freehand': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break; // Solo GM può disegnare
-                    case 'rect': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
-                    case 'circle': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
-                    default: vttContainer.style.cursor = 'default';
+
+                if (currentDrawingTool === 'select') {
+                    if (stage) stage.draggable(true); // ABILITA Pan
+                    vttContainer.style.cursor = 'grab'; // Cursore "mano"
+                } else {
+                    if (stage) stage.draggable(false); // DISABILITA Pan per permettere il disegno
+
+                    // Imposta il cursore corretto per lo strumento
+                    switch(currentDrawingTool) {
+                        case 'ruler': vttContainer.style.cursor = 'crosshair'; break;
+                        case 'ping': vttContainer.style.cursor = 'pointer'; break;
+                        case 'freehand': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
+                        case 'rect': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
+                        case 'circle': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
+                        default: vttContainer.style.cursor = 'default';
+                    }
                 }
+
                 // Se si deseleziona uno strumento di disegno/misura, cancella forme temporanee
                 if (currentDrawingTool !== 'ruler' && measurementLine) {
-                     measurementLine.destroy(); measurementText.destroy(); tempLayer.batchDraw();
-                     measurementLine = null; measurementText = null; isDrawing = false;
+                    measurementLine.destroy(); measurementText.destroy(); tempLayer.batchDraw();
+                    measurementLine = null; measurementText = null; isDrawing = false;
                 }
+
                 if (currentDrawingTool === 'select' && currentShape) {
-                     currentShape.destroy(); drawingLayer.batchDraw(); currentShape = null; isDrawing = false;
+                    currentShape.destroy(); drawingLayer.batchDraw(); currentShape = null; isDrawing = false;
                 }
             });
         });
