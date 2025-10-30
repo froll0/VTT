@@ -479,7 +479,7 @@ label {
 		border-inline-end: 4px solid var(--colore-gm);
 	}
 
-	.message-bubble .message-timestamp {
+	.message-timestamp {
         display: block;
         margin-block-start: 2px; /* [MODERN] Fix Spaziatura */
         font-size: 0.7rem; 
