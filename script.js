@@ -1368,7 +1368,7 @@
             
             if (isGM && msg.visibility === 'public') {
                 const pinBtn = document.createElement('button');
-                pinBtn.className = 'pin-button';
+                pinBtn.className = 'pin-button gm-only';
                 pinBtn.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
                 pinBtn.onclick = () => { pinMessageRef.set(msg); };
                 div.appendChild(pinBtn);
