@@ -400,7 +400,7 @@ label {
 }
 
 #request-gm-btn {
-	display: none; 
+	display: true; 
 	background-color: var(--colore-warning);
 	width: 100%;
 

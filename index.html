@@ -34,7 +34,6 @@
                     <button class="tab-button" data-tab="macros" title="Macro Dadi"><i class="fa-solid fa-scroll"></i></button>
                     <button class="tab-button gm-only" data-tab="vtt" id="tab-btn-vtt" title="VTT Tools"><i class="fa-solid fa-map"></i></button>
                     <button class="tab-button" data-tab="settings" title="Impostazioni"><i class="fa-solid fa-gear"></i></button>
-                    <button class="tab-button" data-tab="admin" id="tab-btn-admin" title="Admin GM"><i class="fa-solid fa-shield"></i></button>
                 </div>
                 
                 <div class="tab-content">
@@ -49,9 +48,9 @@
                                 <button id="add-npc-turn" title="Aggiungi"><i class="fa-solid fa-plus"></i></button>
                             </div>
                             <div class="button-group">
-                                <button id="next-turn-btn">Turno <i class="fa-solid fa-forward"></i></button>
-                                <button id="reset-values-btn">Azzera Init.</button>
-                                <button id="reset-turn-btn">Resetta Contatore</button>
+                                <button id="next-turn-btn">Turno successivo <i class="fa-solid fa-forward"></i></button>
+                                <button id="reset-values-btn">Azzera iniziativa</button>
+                                <button id="reset-turn-btn">Azzera contatore dei turni</button>
                             </div>
                         </div>
                     </div>
@@ -62,15 +61,15 @@
                             <button id="add-note-btn" title="Nuova nota"><i class="fa-solid fa-plus"></i></button>
                             <button id="delete-note-btn" class="note-delete-btn" title="Elimina nota"><i class="fa-solid fa-trash"></i></button>
                         </div>
-                        <label><input type="checkbox" id="note-is-private"> Nota Privata</label>
+                        <label><input type="checkbox" id="note-is-private"> Nota privata</label>
                         <textarea id="notes-textarea" placeholder="Scrivi qui..."></textarea>
                     </div>
                     
                     <div class="tab-pane" id="tab-macros">
                         <ul id="macro-list"><li>Nessuna macro salvata.</li></ul>
                         <div class="input-group" id="add-macro-group">
-                            <input type="text" id="macro-name" placeholder="Nome Macro">
-                            <input type="text" id="macro-command" placeholder="Comando Dado">
+                            <input type="text" id="macro-name" placeholder="Descrizione">
+                            <input type="text" id="macro-command" placeholder="Comando">
                             <button id="add-macro-btn"><i class="fa-solid fa-plus"></i></button>
                         </div>
                     </div>
@@ -79,49 +78,49 @@
                         <div class="vtt-controls-grid">
                             <div class="vtt-control-section gm-only" id="vtt-drawing-options">
                                 <div class="input-group">
-                                    <label for="drawing-color">Colore:</label>
+                                    <label for="drawing-color">Colore</label>
                                     <input type="color" id="drawing-color" value="#ff0000">
-                                    <label for="drawing-stroke-width">Spess.:</label> <input type="number" id="drawing-stroke-width" value="2" min="1" max="20">
+                                    <label for="drawing-stroke-width">Spessore</label> <input type="number" id="drawing-stroke-width" value="2" min="1" max="20">
                                 </div>
-                                <button id="clear-drawings-btn" class="admin-button"><i class="fa-solid fa-eraser"></i> Cancella Disegni</button>
+                                <button id="clear-drawings-btn" class="admin-button"><i class="fa-solid fa-eraser"></i> Cancella disegni</button>
                             </div>
                             
                             <div class="vtt-control-section gm-only" id="vtt-map-options">
-                                <h4>Mappa e Griglia</h4>
+                                <h4>Mappa e griglia</h4>
                                 <div class="input-group">
-                                    <label for="vtt-map-url">URL Mappa:</label>
+                                    <label for="vtt-map-url">URL mappa</label>
                                     <input type="url" id="vtt-map-url" placeholder="Incolla URL immagine">
                                 </div>
-                                <button id="vtt-set-map">Imposta Mappa</button>
+                                <button id="vtt-set-map">Imposta mappa</button>
                                 <div class="input-group">
-                                    <label for="grid-scale">Scala:</label>
+                                    <label for="grid-scale">Scala</label>
                                     <input type="number" id="grid-scale" value="1.5" step="0.1" min="0.1">
-                                    <label for="grid-unit">Unità:</label>
+                                    <label for="grid-unit">Unità</label>
                                     <input type="text" id="grid-unit" value="m">
                                 </div>
-                                <button id="save-grid-scale">Salva Scala</button>
+                                <button id="save-grid-scale">Imposta scala</button>
                             </div>
                             
                             <div class="vtt-control-section gm-only" id="vtt-token-options">
-                                <h4>Aggiungi Token</h4>
+                                <h4>Token</h4>
                                 <div class="input-group">
-                                    <label for="vtt-token-name">Nome:</label>
-                                    <input type="text" id="vtt-token-name" placeholder="Nome Token">
+                                    <label for="vtt-token-name">Nome</label>
+                                    <input type="text" id="vtt-token-name" placeholder="Nome">
                                 </div>
                                 <div class="input-group">
-                                    <label for="vtt-token-url">URL Img:</label> <input type="url" id="vtt-token-url" placeholder="URL immagine (opz.)">
+                                    <label for="vtt-token-url">URL immagine</label> <input type="url" id="vtt-token-url" placeholder="URL immagine (opz.)">
                                 </div>
                                 <div class="input-group">
-                                    <label for="vtt-token-color">Colore:</label>
+                                    <label for="vtt-token-color">Colore</label>
                                     <input type="color" id="vtt-token-color" value="#ff0000">
                                 </div>
                                 <div class="input-group">
-                                    <label for="vtt-token-owner">Prop.:</label> <select id="vtt-token-owner">
-                                        <option value="">Nessuno/GM</option>
+                                    <label for="vtt-token-owner">Proprietario</label> <select id="vtt-token-owner">
+                                        <option value="">Master</option>
                                     </select>
                                 </div>
-                                <button id="vtt-add-token">Aggiungi Token</button>
-                                <small><i>Posiziona cliccando sulla mappa. Doppio click su token/disegno (GM) per eliminare.</i></small>
+                                <button id="vtt-add-token">Aggiungi token</button>
+                                <small><i>Posiziona cliccando sulla mappa. Doppio click su token per eliminarlo.</i></small>
                             </div>
                         </div>
                     </div>
@@ -143,39 +142,35 @@
                             <button id="save-chat-bg"><i class="fa-solid fa-check"></i></button>
                         </div>
                         <div class="input-group">
-                            <button id="theme-toggle" style="width: 100%;">Tema <i class="fa-solid fa-circle-half-stroke"></i></button>
+                            <button id="theme-toggle" style="width: 100%;">Cambia il tema <i class="fa-solid fa-circle-half-stroke"></i></button>
                         </div>
                         <div class="input-group">
-                            <button id="request-gm-btn" style="width: 100%;">Diventa GM</button>
+                            <button id="request-gm-btn" style="width: 100%;">Chiedi di diventare il Master</button>
                         </div>
                         <div class="button-group full-width">
-                            <button id="clear-local-btn" class="admin-button">Resetta Dati Locali (Logout)</button>
+                            <button id="clear-local-btn" class="admin-button">Elimina i dati locali</button>
                         </div>
-                    </div>
-                    
-                    <div class="tab-pane" id="tab-admin">
-                        <h4 id="admin-music-title">Musica/Ambiance</h4>
+                        <h4></h4>
                         <div id="music-controls">
-                            <div class="input-group">
+                            <div class="input-group gm-only">
                                 <input type="url" id="music-url" placeholder="Incolla URL audio (mp3, wav, ogg)">
                             </div>
                             <div class="button-group-3">
-                                <button id="music-play"><i class="fa-solid fa-play"></i></button>
-                                <button id="music-pause"><i class="fa-solid fa-pause"></i></button>
-                                <button id="music-stop"><i class="fa-solid fa-stop"></i></button>
+                                <button id="music-play" class="gm-only"><i class="fa-solid fa-play"></i></button>
+                                <button id="music-pause" class="gm-only"><i class="fa-solid fa-pause"></i></button>
+                                <button id="music-stop" class="gm-only"><i class="fa-solid fa-stop"></i></button>
                             </div>
                         </div>
-                        
-                        <h4>Gestione Dati</h4>
-                        <div class="button-group">
-                            <button id="delete-texts-btn" class="admin-button">Elimina Messaggi</button>
-                            <button id="delete-rolls-btn" class="admin-button">Elimina Tiri</button>
+                        <div class="button-group full-width">
+                            <button id="delete-rolls-btn" class="admin-button gm-only">Elimina tutti i tiri</button>
                         </div>
                         <div class="button-group full-width">
-                            <button id="abdicate-gm-btn" class="admin-button">Cedi Ruolo GM</button>
+                            <button id="delete-texts-btn" class="admin-button gm-only">Elimina tutti i messaggi</button>
+                        </div>
+                        <div class="button-group full-width">
+                            <button id="abdicate-gm-btn" class="admin-button gm-only">Smetti di essere il Master</button>
                         </div>
                     </div>
-                    
                 </div>
             </section>
 
