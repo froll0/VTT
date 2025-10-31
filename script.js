@@ -411,11 +411,16 @@
                  
                  // Testo (Nome) - sempre presente, sopra immagine/cerchio
                  tokenShape.add(new Konva.Text({
-                      name: 'tokenText', x: 0, y: gridOptions.size * 0.7, // Sotto il token
-                      text: tokenData.name || '', fontSize: 9, fill: '#333',
-                      align: 'center', width: gridOptions.size,
-                      listening: false,
-                 }));
+                    name: 'tokenText',
+                    x: 0,
+                    y: gridOptions.size + 2, // Posiziona 2px SOTTO la cella
+                    text: tokenData.name || '',
+                    fontSize: 11, // Leggermente più grande
+                    fill: '#000000', // Nero
+                    align: 'center',
+                    width: gridOptions.size, // Larghezza come la cella per centrarlo
+                    listening: false
+                }));
 
                  // Eventi (invariati)
                  // Salva la posizione quando il token viene spostato
@@ -481,7 +486,13 @@
                  }
 
                  const text = tokenShape.findOne('.tokenText');
-                 if (text) text.text(tokenData.name || '');
+                 if (text) {
+                    text.text(tokenData.name || '');
+                    text.y(gridOptions.size + 2);
+                    text.width(gridOptions.size);
+                    text.fontSize(11);
+                    text.fill('#000000');
+                }
             }
             tokenLayer.batchDraw();
         }
