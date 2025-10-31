@@ -122,6 +122,7 @@
         const vttZoomInBtn = document.getElementById('vtt-zoom-in');
         const vttZoomOutBtn = document.getElementById('vtt-zoom-out');
         const vttCenterViewBtn = document.getElementById('vtt-center-view');
+        const vttToggleSidebarBtn = document.getElementById('vtt-toggle-sidebar');
         // Sezioni admin VTT per visibilità GM
         const vttDrawingOptionsDiv = document.getElementById('vtt-drawing-options');
         const vttMapOptionsDiv = document.getElementById('vtt-map-options');
@@ -1055,6 +1056,29 @@
                     location.reload();
                 }
             }
+        });
+
+        vttToggleSidebarBtn.addEventListener('click', () => {
+            const appContainer = document.getElementById('main-content');
+            const icon = vttToggleSidebarBtn.querySelector('i');
+
+            // Attiva/disattiva la classe sul contenitore principale
+            appContainer.classList.toggle('sidebar-collapsed');
+
+            // Cambia l'icona del pulsante
+            if (appContainer.classList.contains('sidebar-collapsed')) {
+                icon.classList.remove('fa-xmark');
+                icon.classList.add('fa-bars');
+                vttToggleSidebarBtn.title = "Mostra Sidebar";
+            } else {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-xmark');
+                vttToggleSidebarBtn.title = "Nascondi Sidebar";
+            }
+
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 310); // 310ms (appena dopo la fine della transizione di 0.3s)
         });
 
         function loadMacros() {

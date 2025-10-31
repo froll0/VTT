@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container" id="main-content">
+    <div class="app-container sidebar-collapsed" id="main-content">
 
         <div class="sidebar-column">
 
@@ -127,17 +127,17 @@
                     
                     <div class="tab-pane" id="tab-settings">
                         <div class="input-group">
-                            <label for="user-color">Colore Nome:</label>
+                            <label for="user-color">Colore del nome</label>
                             <input type="color" id="user-color" value="#000000">
                             <button id="save-color"><i class="fa-solid fa-check"></i></button>
                         </div>
                         <div class="input-group">
-                            <label for="page-bg-color">Sfondo Pagina:</label>
+                            <label for="page-bg-color">Sfondo della pagina</label>
                             <input type="color" id="page-bg-color" value="#f4f4f4">
                             <button id="save-page-bg"><i class="fa-solid fa-check"></i></button>
                         </div>
                         <div class="input-group">
-                            <label for="chat-bg-color">Sfondo Chat:</label>
+                            <label for="chat-bg-color">Sfondo della chat</label>
                             <input type="color" id="chat-bg-color" value="#ffffff">
                             <button id="save-chat-bg"><i class="fa-solid fa-check"></i></button>
                         </div>
@@ -210,6 +210,7 @@
             </div>
 
             <div id="vtt-view-controls">
+                <button id="vtt-toggle-sidebar" title="Mostra Sidebar"><i class="fa-solid fa-bars"></i></button>
                 <button id="vtt-zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
                 <button id="vtt-zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
                 <button id="vtt-center-view" title="Centra Vista"><i class="fa-solid fa-crosshairs"></i></button>

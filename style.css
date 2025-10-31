@@ -278,6 +278,19 @@ label {
 	max-width: 1800px;
 	max-height: calc(100vh - (12px * 2)); /* [MODERN] Ridotto */
 	margin: 0 auto;
+	transition: grid-template-columns 0.3s ease-in-out;
+}
+
+.app-container#main-content.sidebar-collapsed {
+    /* Imposta la prima colonna a 0px */
+    grid-template-columns: 0px 1fr 400px;
+}
+
+.app-container#main-content.sidebar-collapsed .sidebar-column {
+    /* Nascondi il contenuto e i bordi */
+    padding: 0;
+    border: none;
+    overflow: hidden;
 }
 
 .vtt-column,
@@ -1162,9 +1175,17 @@ body.dark-mode .reply-context-block {
 /* --- 6. MEDIA QUERIES --- */
 @media (max-width: 1200px) {
 	.app-container#main-content {
-		grid-template-columns: 320px 1fr;
-	}
-	.vtt-column { display: none; }
+        /* Stato aperto a 1200px */
+        grid-template-columns: 320px 1fr;
+    }
+    
+    /* [NUOVO] Stato collassato a 1200px */
+    .app-container#main-content.sidebar-collapsed {
+        grid-template-columns: 0px 1fr;
+    }
+
+    .vtt-column { display: none; }
+    .main-column { display: block; } /* Assicurati che la chat sia visibile */
 }
 
 @media (max-width: 900px) {
