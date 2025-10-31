@@ -291,6 +291,8 @@ label {
 	gap: 12px; /* [MODERN] Ridotto */
 }
 
+.vtt-column { position: relative; }
+
 /* --- VTT --- */
 
 #vtt-container {
@@ -312,6 +314,80 @@ label {
 	&.pinging {
 		cursor: pointer;
 	}
+}
+	
+/* --- [NUOVO] Controlli Overlay VTT --- */
+#vtt-tool-controls,
+#vtt-view-controls {
+	position: absolute;
+	display: flex;
+	background-color: var(--colore-sfondo-widget);
+	border: 1px solid var(--colore-bordo);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+	z-index: 10;
+	padding: 4px;
+}
+
+#vtt-tool-controls {
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	gap: 4px;
+}
+
+#vtt-view-controls {
+	top: 12px;
+	left: 12px;
+	flex-direction: column;
+	gap: 4px;
+}
+
+#vtt-view-controls button {
+	width: 32px;
+	height: 32px;
+	font-size: 1rem;
+	padding: 0;
+}
+
+/* --- Stile per i nuovi bottoni-radio --- */
+#vtt-tool-selection {
+	/* Sostituisce .tool-selection-grid (che non serve più) */
+	display: flex;
+	gap: 4px;
+}
+
+#vtt-tool-selection label {
+	margin: 0;
+}
+
+#vtt-tool-selection input[type="radio"] {
+	display: none; /* Nascondi il radio button */
+}
+
+#vtt-tool-selection label span {
+	/* Questo è lo 'span' che abbiamo aggiunto nell'HTML */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	font-size: 1rem;
+	background-color: var(--colore-sfondo-input);
+	border: 1px solid var(--colore-bordo-input);
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+#vtt-tool-selection label input[type="radio"]:checked + span {
+	background-color: var(--colore-primario);
+	border-color: var(--colore-primario-hover);
+	color: #fff;
+}
+
+#vtt-tool-selection label:not(:has(:checked)):hover span {
+	background-color: var(--colore-bordo);
 }
 
 /* --- Colonna Principale (Chat) --- */

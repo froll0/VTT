@@ -119,6 +119,9 @@
         const gridScaleInput = document.getElementById('grid-scale');       // NUOVO Scala
         const gridUnitInput = document.getElementById('grid-unit');         // NUOVO Unità
         const saveGridScaleBtn = document.getElementById('save-grid-scale'); // NUOVO Btn Scala
+        const vttZoomInBtn = document.getElementById('vtt-zoom-in');
+        const vttZoomOutBtn = document.getElementById('vtt-zoom-out');
+        const vttCenterViewBtn = document.getElementById('vtt-center-view');
         // Sezioni admin VTT per visibilità GM
         const vttDrawingOptionsDiv = document.getElementById('vtt-drawing-options');
         const vttMapOptionsDiv = document.getElementById('vtt-map-options');
@@ -550,6 +553,43 @@
             }
             drawingLayer.batchDraw();
         }
+        
+        function zoomStage(direction, zoomCenter) {
+            if (!stage) return;
+
+            const oldScale = stage.scaleX();
+            
+            // Se non viene fornito un centro (es. click bottone), usa il centro del viewport
+            if (!zoomCenter) {
+                    zoomCenter = {
+                            x: stage.width() / 2,
+                            y: stage.height() / 2
+                    };
+            }
+
+            // Calcola il punto relativo alla mappa
+            const mousePointTo = {
+                    x: (zoomCenter.x - stage.x()) / oldScale,
+                    y: (zoomCenter.y - stage.y()) / oldScale,
+            };
+
+            // Calcola la nuova scala
+            let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+            newScale = Math.max(minScale, Math.min(maxScale, newScale));
+
+            if (newScale === oldScale) return;
+
+            // Calcola la nuova posizione per mantenere il punto zoomato
+            const newPos = {
+                    x: zoomCenter.x - mousePointTo.x * newScale,
+                    y: zoomCenter.y - mousePointTo.y * newScale,
+            };
+
+            stage.scale({ x: newScale, y: newScale });
+            stage.position(newPos);
+            stage.batchDraw();
+            drawGrid(); // Ridisegna la griglia dopo lo zoom
+        }
 
         // ** MODIFICATA **: initializeVTT ora centra correttamente il token al click
         function initializeVTT() {
@@ -766,36 +806,13 @@
             stage.on('wheel.zoom', (e) => {
                 e.evt.preventDefault(); // Impedisce lo scroll della pagina
                 
-                const oldScale = stage.scaleX();
                 const pointer = stage.getPointerPosition();
 
                 if (!pointer) return; // Uscita di sicurezza se il puntatore non è sullo stage
 
-                // Calcola dove si trova il puntatore relativo alla mappa (indipendente da zoom/pan)
-                const mousePointTo = {
-                    x: (pointer.x - stage.x()) / oldScale,
-                    y: (pointer.y - stage.y()) / oldScale,
-                };
-
                 // Determina la direzione dello zoom e la nuova scala
                 const direction = e.evt.deltaY > 0 ? -1 : 1; // -1 zoom out, 1 zoom in
-                let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-
-                // Applica i limiti di zoom min/max
-                newScale = Math.max(minScale, Math.min(maxScale, newScale));
-                
-                if (newScale === oldScale) return; // Niente da fare se siamo già ai limiti
-
-                // Calcola la nuova posizione dello stage per mantenere il punto sotto il mouse
-                const newPos = {
-                    x: pointer.x - mousePointTo.x * newScale,
-                    y: pointer.y - mousePointTo.y * newScale,
-                };
-
-                stage.scale({ x: newScale, y: newScale });
-                stage.position(newPos);
-                stage.batchDraw(); // Ridisegna lo stage
-                drawGrid();
+                zoomStage(direction, pointer)
             });
 
             stage.on('dragmove.grid', () => {
@@ -819,6 +836,20 @@
                         }
                     }
                 });
+            });
+
+            vttZoomInBtn.addEventListener('click', () => {
+                zoomStage(1, null); // direction 1 (zoom in), centro (null)
+            });
+            vttZoomOutBtn.addEventListener('click', () => {
+                zoomStage(-1, null); // direction -1 (zoom out), centro (null)
+            });
+            vttCenterViewBtn.addEventListener('click', () => {
+                if (!stage) return;
+                stage.position({ x: 0, y: 0 });
+                stage.scale({ x: 1, y: 1 });
+                stage.batchDraw();
+                drawGrid(); 
             });
         }
         

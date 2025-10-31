@@ -33,7 +33,7 @@
                     <button class="tab-button" data-tab="notes" title="Note"><i class="fa-solid fa-note-sticky"></i></button>
                     <button class="tab-button" data-tab="macros" title="Macro Dadi"><i class="fa-solid fa-scroll"></i></button>
                     <button class="tab-button" data-tab="vtt" id="tab-btn-vtt" title="VTT Tools"><i class="fa-solid fa-map"></i></button>
-                    <button class="tab-button" data-tab="settings" title="Impostazioni"><i class="fa-solid fa-gear"></i></button>
+                    <button class="tab-button gm-only" data-tab="settings" title="Impostazioni"><i class="fa-solid fa-gear"></i></button>
                     <button class="tab-button" data-tab="admin" id="tab-btn-admin" title="Admin GM"><i class="fa-solid fa-shield"></i></button>
                 </div>
                 
@@ -76,19 +76,7 @@
                     </div>
 
                     <div class="tab-pane" id="tab-vtt">
-                        <div class="vtt-controls-grid"> 
-                            <div class="vtt-control-section"> 
-                                <h4>Strumento Attivo</h4>
-                                <div class="tool-selection-grid" id="vtt-tool-selection">
-                                    <label><input type="radio" name="vtt-tool" value="select" checked> <i class="fa-solid fa-arrow-pointer"></i> Sel.</label>
-                                    <label><input type="radio" name="vtt-tool" value="ruler"> <i class="fa-solid fa-ruler"></i> Misura</label>
-                                    <label><input type="radio" name="vtt-tool" value="ping"> <i class="fa-solid fa-bullseye"></i> Ping</label>
-                                    <label><input type="radio" name="vtt-tool" value="freehand"> <i class="fa-solid fa-pencil"></i> Dis.</label>
-                                    <label><input type="radio" name="vtt-tool" value="rect"> <i class="fa-regular fa-square"></i> Rett.</label>
-                                    <label><input type="radio" name="vtt-tool" value="circle"> <i class="fa-regular fa-circle"></i> Cerchio</label>
-                                </div>
-                            </div>
-
+                        <div class="vtt-controls-grid">
                             <div class="vtt-control-section gm-only" id="vtt-drawing-options">
                                 <div class="input-group">
                                     <label for="drawing-color">Colore:</label>
@@ -195,6 +183,41 @@
 
         <div class="vtt-column">
             <div id="vtt-container">
+            </div>
+
+            <div id="vtt-tool-controls">
+                <div class="tool-selection-grid" id="vtt-tool-selection">
+                    <label title="Seleziona e Sposta">
+                        <input type="radio" name="vtt-tool" value="select" checked>
+                        <span><i class="fa-solid fa-arrow-pointer"></i></span>
+                    </label>
+                    <label title="Misura Distanza">
+                        <input type="radio" name="vtt-tool" value="ruler">
+                        <span><i class="fa-solid fa-ruler"></i></span>
+                    </label>
+                    <label title="Ping">
+                        <input type="radio" name="vtt-tool" value="ping">
+                        <span><i class="fa-solid fa-bullseye"></i></span>
+                    </label>
+                    <label class="gm-only" title="Disegno a Mano Libera (Solo GM)">
+                        <input type="radio" name="vtt-tool" value="freehand">
+                        <span><i class="fa-solid fa-pencil"></i></span>
+                    </label>
+                    <label class="gm-only" title="Disegna Rettangolo (Solo GM)">
+                        <input type="radio" name="vtt-tool" value="rect">
+                        <span><i class="fa-regular fa-square"></i></span>
+                    </label>
+                    <label class="gm-only" title="Disegna Cerchio (Solo GM)">
+                        <input type="radio" name="vtt-tool" value="circle">
+                        <span><i class="fa-regular fa-circle"></i></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="vtt-view-controls">
+                <button id="vtt-zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                <button id="vtt-zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+                <button id="vtt-center-view" title="Centra Vista"><i class="fa-solid fa-crosshairs"></i></button>
             </div>
         </div>
 
