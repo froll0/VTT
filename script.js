@@ -146,6 +146,9 @@
         let mapLayer;
         let gridLayer;
         let tokenLayer;
+        let drawingLayer; // <-- SPOSTA QUI
+        let tempLayer; // <-- SPOSTA QUI
+        let currentMapUrl = null;
         let gridOptions = { size: 50, color: 'grey', strokeWidth: 1 }; // Configurazione griglia
         let gridScale = 1.5; // NUOVO Scala griglia
         let gridUnit = 'm';  // NUOVO Unità griglia
@@ -271,27 +274,56 @@
         // --- 2-1. FUNZIONE HELPER VTT ---
 
         function drawGrid() {
-            if (!gridLayer) return;
-            gridLayer.destroyChildren();
-            const width = stage.width();
-            const height = stage.height();
-            const size = gridOptions.size;
+            if (!gridLayer || !stage) return;
+            gridLayer.destroyChildren(); // Pulisci vecchie linee
 
-            for (let i = 0; i <= width / size; i++) { // <= per disegnare l'ultima linea se precisa
+            const size = gridOptions.size;
+            const scale = stage.scaleX(); // Scala corrente
+
+            // Ottimizzazione: non disegnare la griglia se è troppo piccola
+            const scaledSize = size * scale;
+            if (scaledSize < 4) return;
+
+            // Calcola l'area del mondo visibile
+            const viewW = stage.width();
+            const viewH = stage.height();
+
+            // (tx, ty) è la posizione (0,0) del mondo sullo schermo
+            const tx = stage.x();
+            const ty = stage.y();
+
+            const x1 = (-tx) / scale;
+            const y1 = (-ty) / scale;
+            const x2 = (viewW - tx) / scale;
+            const y2 = (viewH - ty) / scale;
+
+            const startX = Math.floor(x1 / size) * size;
+            const startY = Math.floor(y1 / size) * size;
+            const endX = Math.ceil(x2 / size) * size;
+            const endY = Math.ceil(y2 / size) * size;
+
+            // Spessore linea dinamico (più sottile quando si fa zoom-out)
+            const strokeWidth = Math.max(0.5, 1 / scale);
+
+            // Disegna le linee (in coordinate del *mondo*)
+            // Konva le trasformerà automaticamente con il layer
+            for (let i = startX; i <= endX; i += size) {
                 gridLayer.add(new Konva.Line({
-                    points: [Math.round(i * size) + 0.5, 0, Math.round(i * size) + 0.5, height],
+                    points: [i, startY, i, endY],
                     stroke: gridOptions.color,
-                    strokeWidth: gridOptions.strokeWidth,
+                    strokeWidth: strokeWidth,
+                    listening: false // La griglia non deve essere cliccabile
                 }));
             }
-            for (let j = 0; j <= height / size; j++) { // <= per disegnare l'ultima linea se precisa
-                 gridLayer.add(new Konva.Line({
-                    points: [0, Math.round(j * size) + 0.5, width, Math.round(j * size) + 0.5],
+            for (let j = startY; j <= endY; j += size) {
+                gridLayer.add(new Konva.Line({
+                    points: [startX, j, endX, j],
                     stroke: gridOptions.color,
-                    strokeWidth: gridOptions.strokeWidth,
+                    strokeWidth: strokeWidth,
+                    listening: false
                 }));
             }
-            gridLayer.batchDraw(); // Usa batchDraw sul layer
+            gridLayer.batchDraw();
         }
 
         function loadMapBackground(url) {
@@ -309,7 +341,7 @@
                 const imgW = img.width();
                 const imgH = img.height();
 
-                // Calcola il rapporto per "contenere" l'immagine mantenendo l'aspect ratio
+                // Calcola il rapporto per "contenere" l'immagine mantenendo le proporzioni
                 const ratio = Math.min(stageW / imgW, stageH / imgH);
 
                 const newW = imgW * ratio;
@@ -319,11 +351,11 @@
                 const newX = (stageW - newW) / 2;
                 const newY = (stageH - newH) / 2;
 
-                img.setAttrs({ 
-                    x: newX, 
-                    y: newY, 
-                    width: newW, 
-                    height: newH 
+                img.setAttrs({ 
+                    x: newX, 
+                    y: newY, 
+                    width: newW, 
+                    height: newH 
                 });
 
                 mapLayer.add(img);
@@ -348,11 +380,9 @@
                     id: tokenId, x: tokenX, y: tokenY, draggable: canDrag,
                     dragBoundFunc: function(pos) {
                         // Clamp position within stage boundaries
-                        const size = gridOptions.size;
-                        let newX = Math.floor(pos.x / size) * size;
-                        let newY = Math.floor(pos.y / size) * size;
-                        newX = Math.max(0, Math.min(stage.width() - size, newX));
-                        newY = Math.max(0, Math.min(stage.height() - size, newY));
+                        const halfGrid = gridOptions.size / 2;
+                        const newX = Math.max(0 - halfGrid, pos.x);
+                        const newY = Math.max(0 - halfGrid, pos.y);
                         return { x: newX, y: newY };
                     }
                  });
@@ -531,8 +561,6 @@
 
              mapLayer = new Konva.Layer();
              gridLayer = new Konva.Layer({
-                  // *** NUOVO Clipping per griglia precisa ***
-                  clip: { x: 0, y: 0, width: containerWidth, height: containerHeight }
              });
              drawingLayer = new Konva.Layer();
              tokenLayer = new Konva.Layer();
@@ -554,11 +582,12 @@
                      return; 
                  }
                  
-                 const pos = stage.getPointerPosition();
+                 const pos = stage.getRelativePointerPosition();
 
                  if (isGM && tokenToAdd) { // Logica Aggiunta Token (GM)
-                     const x = Math.floor(pos.x / gridOptions.size) * gridOptions.size;
-                     const y = Math.floor(pos.y / gridOptions.size) * gridOptions.size;
+                    const halfGrid = gridOptions.size / 2;
+                     const x = pos.x - halfGrid;
+                     const y = pos.y - halfGrid;
                      const owner = vttTokenOwnerSelect.value || null;
                      
                      vttTokensRef.push({
@@ -584,7 +613,7 @@
                  if (currentDrawingTool === 'select') { isDrawing = false; return; }
                  
                  isDrawing = true;
-                 startPoint = stage.getPointerPosition();
+                 startPoint = stage.getRelativePointerPosition();
                  const color = drawingColorInput.value;
                  const strokeWidth = parseInt(drawingStrokeWidthInput.value) || 2;
 
@@ -628,7 +657,7 @@
 
             stage.on('mousemove touchmove', () => {
                 if (!isDrawing) return;
-                const pos = stage.getPointerPosition();
+                const pos = stage.getRelativePointerPosition();
 
                 if (currentDrawingTool === 'ruler' && measurementLine) {
                      measurementLine.points([startPoint.x, startPoint.y, pos.x, pos.y]);
@@ -720,41 +749,46 @@
                         vttContainer.style.cursor = 'grab';
                     }
                 });
+            });
+
+            // Listener per lo ZOOM (rotellina del mouse)
+            stage.on('wheel.zoom', (e) => {
+                e.evt.preventDefault(); // Impedisce lo scroll della pagina
                 
-                // Listener per lo ZOOM (rotellina del mouse)
-                stage.on('wheel.zoom', (e) => {
-                    e.evt.preventDefault(); // Impedisce lo scroll della pagina
-                    
-                    const oldScale = stage.scaleX();
-                    const pointer = stage.getPointerPosition();
+                const oldScale = stage.scaleX();
+                const pointer = stage.getPointerPosition();
 
-                    if (!pointer) return; // Uscita di sicurezza se il puntatore non è sullo stage
+                if (!pointer) return; // Uscita di sicurezza se il puntatore non è sullo stage
 
-                    // Calcola dove si trova il puntatore relativo alla mappa (indipendente da zoom/pan)
-                    const mousePointTo = {
-                        x: (pointer.x - stage.x()) / oldScale,
-                        y: (pointer.y - stage.y()) / oldScale,
-                    };
+                // Calcola dove si trova il puntatore relativo alla mappa (indipendente da zoom/pan)
+                const mousePointTo = {
+                    x: (pointer.x - stage.x()) / oldScale,
+                    y: (pointer.y - stage.y()) / oldScale,
+                };
 
-                    // Determina la direzione dello zoom e la nuova scala
-                    const direction = e.evt.deltaY > 0 ? -1 : 1; // -1 zoom out, 1 zoom in
-                    let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+                // Determina la direzione dello zoom e la nuova scala
+                const direction = e.evt.deltaY > 0 ? -1 : 1; // -1 zoom out, 1 zoom in
+                let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
-                    // Applica i limiti di zoom min/max
-                    newScale = Math.max(minScale, Math.min(maxScale, newScale));
-                    
-                    if (newScale === oldScale) return; // Niente da fare se siamo già ai limiti
+                // Applica i limiti di zoom min/max
+                newScale = Math.max(minScale, Math.min(maxScale, newScale));
+                
+                if (newScale === oldScale) return; // Niente da fare se siamo già ai limiti
 
-                    // Calcola la nuova posizione dello stage per mantenere il punto sotto il mouse
-                    const newPos = {
-                        x: pointer.x - mousePointTo.x * newScale,
-                        y: pointer.y - mousePointTo.y * newScale,
-                    };
+                // Calcola la nuova posizione dello stage per mantenere il punto sotto il mouse
+                const newPos = {
+                    x: pointer.x - mousePointTo.x * newScale,
+                    y: pointer.y - mousePointTo.y * newScale,
+                };
 
-                    stage.scale({ x: newScale, y: newScale });
-                    stage.position(newPos);
-                    stage.batchDraw(); // Ridisegna lo stage
-                });
+                stage.scale({ x: newScale, y: newScale });
+                stage.position(newPos);
+                stage.batchDraw(); // Ridisegna lo stage
+                drawGrid();
+            });
+
+            stage.on('dragmove.grid', () => {
+                drawGrid();
             });
 
             window.addEventListener('resize', () => {
@@ -764,17 +798,13 @@
                         const newHeight = vttContainer.offsetHeight;
                         if (newWidth > 0 && newHeight > 0) {
                             stage.size({ width: newWidth, height: newHeight });
-                            if (gridLayer) {
-                                gridLayer.clip({ x: 0, y: 0, width: newWidth, height: newHeight });
+
+                            if(gridLayer) {
                                 drawGrid();
                             }
-                            if (mapLayer) {
-                                vttMapRef.once('value', (snapshot) => {
-                                    const mapData = snapshot.val() || {};
-                                    loadMapBackground(mapData.backgroundUrl);
-                                });
+                            if(mapLayer) {
+                                loadMapBackground(currentMapUrl); 
                             }
-                            console.log("Konva Stage ridimensionato (on resize):", newWidth, newHeight);
                         }
                     }
                 });
@@ -1771,33 +1801,42 @@
             }
         });
         
+        // Sostituisci il blocco 1118-1146 con questo:
         drawingToolRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 currentDrawingTool = e.target.value;
 
-                if (currentDrawingTool === 'select') {
-                    if (stage) stage.draggable(true); // ABILITA Pan
-                    vttContainer.style.cursor = 'grab'; // Cursore "mano"
-                } else {
-                    if (stage) stage.draggable(false); // DISABILITA Pan per permettere il disegno
+                let canDrag = true;
+                let cursorStyle = 'grab'; // Default (modalità 'select')
 
-                    // Imposta il cursore corretto per lo strumento
-                    switch(currentDrawingTool) {
-                        case 'ruler': vttContainer.style.cursor = 'crosshair'; break;
-                        case 'ping': vttContainer.style.cursor = 'pointer'; break;
-                        case 'freehand': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
-                        case 'rect': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
-                        case 'circle': vttContainer.style.cursor = isGM ? 'crosshair' : 'default'; break;
-                        default: vttContainer.style.cursor = 'default';
-                    }
+                switch(currentDrawingTool) {
+                    case 'ruler':
+                        canDrag = false;
+                        cursorStyle = 'crosshair';
+                        break;
+                    case 'ping':
+                        canDrag = false;
+                        cursorStyle = 'pointer';
+                        break;
+                    case 'freehand':
+                    case 'rect':
+                    case 'circle':
+                        if (isGM) { // Solo il GM disabilita il pan per disegnare
+                            canDrag = false;
+                            cursorStyle = 'crosshair';
+                        }
+                        // Se non è GM, si applicano i valori di default (può fare pan)
+                        break;
                 }
 
-                // Se si deseleziona uno strumento di disegno/misura, cancella forme temporanee
+                if (stage) stage.draggable(canDrag);
+                vttContainer.style.cursor = cursorStyle;
+
+                // Logica di pulizia (invariata)
                 if (currentDrawingTool !== 'ruler' && measurementLine) {
                     measurementLine.destroy(); measurementText.destroy(); tempLayer.batchDraw();
                     measurementLine = null; measurementText = null; isDrawing = false;
                 }
-
                 if (currentDrawingTool === 'select' && currentShape) {
                     currentShape.destroy(); drawingLayer.batchDraw(); currentShape = null; isDrawing = false;
                 }
