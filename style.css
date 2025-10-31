@@ -411,6 +411,7 @@ label {
 	min-height: 0;
 	padding: 10px;
 	overflow-y: scroll;
+	overflow-x: hidden;
 	background-color: var(--colore-sfondo-chatbox);
 	border: 1px solid var(--colore-bordo);
 	border-radius: 8px; /* [MODERN] Aumentato */
@@ -514,22 +515,6 @@ label {
 .roll-result {
 	font-weight: bold;
 	color: var(--colore-roll-result);
-}
-
-.pin-button {
-	display: none; 
-	position: absolute;
-	top: 2px;
-	inset-inline-end: 8px;
-	padding: 2px 4px;
-	font-size: 10px;
-	background: #aaa;
-	border-radius: 4px;
-	cursor: pointer;
-}
-
-.gm-is-me .message-bubble.public-message:hover .pin-button {
-	display: block;
 }
 
 /* --- Controlli Chat --- */
@@ -928,6 +913,131 @@ label {
 #theme-toggle,
 #clear-local-btn {
 	width: 100%; 
+}
+
+/* --- [NUOVO] Stili per Azioni Chat (Rispondi/Elimina) --- */
+
+.message-actions {
+ display: none; /* Nascosto di default */
+ position: absolute;
+ top: -8px;
+ inset-inline-end: 8px; /* Allineato a destra */
+ display: flex;
+ gap: 4px;
+ background-color: var(--colore-sfondo-widget);
+ border: 1px solid var(--colore-bordo);
+ border-radius: 8px;
+ box-shadow: var(--shadow);
+ overflow: hidden;
+ opacity: 0;
+ transition: opacity 0.15s ease, top 0.15s ease;
+ z-index: 2;
+}
+
+.message-bubble:hover .message-actions {
+ display: flex; /* Mostra su hover */
+ opacity: 1;
+ top: -12px; /* Effetto "pop-up" */
+}
+
+.message-bubble.mine:hover .message-actions {
+ /* Sposta a sinistra per i messaggi propri */
+ inset-inline-end: auto;
+ inset-inline-start: 8px;
+}
+
+.message-action-btn {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ width: 26px;
+ height: 26px;
+ padding: 0;
+ font-size: 0.8rem;
+ background: none;
+ border: none;
+ border-radius: 0;
+ color: var(--colore-testo);
+ opacity: 0.7;
+ transition: opacity 0.2s, background-color 0.2s;
+}
+
+.message-action-btn:hover {
+ background-color: var(--colore-altri-messaggi);
+ opacity: 1;
+ transform: none; /* Sovrascrive il transform dei bottoni */
+}
+
+.message-action-btn.delete-btn:hover {
+ background-color: var(--colore-pericolo);
+ color: #fff;
+}
+
+/* --- [NUOVO] Stile per Barra di Risposta --- */
+#reply-context-bar {
+ display: none; /* Nascosto di default */
+ justify-content: space-between;
+ align-items: center;
+ padding: 6px 8px 6px 12px;
+ background-color: var(--colore-sfondo-input);
+ border-radius: 8px;
+ border-inline-start: 3px solid var(--colore-primario);
+}
+
+.reply-context-content {
+ display: flex;
+ flex-direction: column;
+ font-size: 0.8rem;
+ overflow: hidden;
+}
+
+#reply-context-text {
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ opacity: 0.8;
+}
+
+#cancel-reply-btn {
+ flex-shrink: 0;
+ padding: 0;
+ width: 24px;
+ height: 24px;
+ font-size: 1.2rem;
+ background: none;
+ border: none;
+ color: var(--colore-testo);
+ opacity: 0.6;
+}
+#cancel-reply-btn:hover {
+ background: none;
+ opacity: 1;
+ transform: none;
+}
+
+/* --- [NUOVO] Stile per blocco risposta nel messaggio --- */
+.reply-context-block {
+	padding: 4px 8px;
+ margin-bottom: 4px;
+ background-color: rgba(0, 0, 0, 0.05);
+ border-radius: 6px;
+ border-inline-start: 3px solid var(--colore-info);
+ font-size: 0.8rem;
+}
+body.dark-mode .reply-context-block {
+ background-color: rgba(255, 255, 255, 0.05);
+}
+
+.reply-context-block strong {
+ font-weight: 600;
+ opacity: 0.8;
+}
+.reply-context-block p {
+ margin: 0;
+ opacity: 0.7;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
 }
 
 /* --- 5. MODALI --- */

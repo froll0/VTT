@@ -124,6 +124,10 @@
         const vttMapOptionsDiv = document.getElementById('vtt-map-options');
         const vttTokenOptionsDiv = document.getElementById('vtt-token-options');
 
+        const replyContextBar = document.getElementById('reply-context-bar');
+        const replyContextText = document.getElementById('reply-context-text');
+        const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+
         // Variabili di stato globali
         let userName = ''; 
         let isGM = false;
@@ -136,6 +140,7 @@
         let currentNoteIsPrivate = false;
         let sharedNotesCache = {};
         let privateNotesCache = {};
+        let currentReply = null; // Oggetto: { nome: 'Nome', testo: 'Testo...' }
 
         let stage; // Konva Stage
         let mapLayer;
@@ -1429,21 +1434,75 @@
         chatRef.limitToLast(50).on('child_added', (snapshot) => {
             const msg = snapshot.val();
             const msgId = snapshot.key;
+
+            if (msg.isDeleted) return;
+
             if (!msg || !msg.nome || !msg.testo) return;
-            
+
             const wasAtBottom = chatbox.scrollTop + chatbox.clientHeight >= chatbox.scrollHeight - 10;
             const isMine = msg.nome === userName;
-            
+
             if (msg.visibility === 'private' && !isMine) return;
             if (msg.visibility === 'gm' && !isMine && !isGM) return;
 
             const div = document.createElement('div');
-            div.classList.add('message-bubble', `${msg.visibility}-message`); 
+            div.id = msgId; // Assegna ID per l'eliminazione
+            div.classList.add('message-bubble', `${msg.visibility}-message`); 
 
             if (isMine) div.classList.add('mine');
             if (msg.nome === lastSenderName) div.classList.add('grouped');
             if (msg.type === 'roll') div.classList.add('roll-message');
-            
+
+            // --- NUOVO: Aggiungi Bottoni Azione ---
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            // Bottone Rispondi (per tutti)
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'message-action-btn reply-btn';
+            replyBtn.title = 'Rispondi';
+            replyBtn.innerHTML = '<i class="fa-solid fa-reply"></i>';
+            replyBtn.onclick = () => {
+                currentReply = { nome: msg.nome, testo: msg.testo };
+                updateReplyUI();
+            };
+            actionsDiv.appendChild(replyBtn);
+
+            // Bottone Pin (solo GM)
+            if (isGM && msg.visibility === 'public') {
+                const pinBtn = document.createElement('button');
+                pinBtn.className = 'message-action-btn pin-button gm-only'; // 'pin-button' ha già stile
+                pinBtn.title = 'Fissa';
+                pinBtn.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
+                pinBtn.onclick = () => { pinMessageRef.set(msg); };
+                actionsDiv.appendChild(pinBtn);
+            }
+
+            // Bottone Elimina (solo miei messaggi)
+            if (isMine) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'message-action-btn delete-btn';
+                deleteBtn.title = 'Elimina';
+                deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                deleteBtn.onclick = () => {
+                    if (window.confirm('Sei sicuro di voler eliminare questo messaggio?')) {
+                        chatRef.child(msgId).update({ isDeleted: true });
+                    }
+                };
+                actionsDiv.appendChild(deleteBtn);
+            }
+            div.appendChild(actionsDiv);
+
+            if (msg.replyTo) {
+                const replyBlock = document.createElement('div');
+                replyBlock.className = 'reply-context-block';
+                replyBlock.innerHTML = `
+                    <strong>Risposta a ${msg.replyTo.nome}</strong>
+                    <p>${msg.replyTo.testo}</p>
+                `;
+                div.appendChild(replyBlock);
+            }
+
             const nomeStrong = document.createElement('strong');
             nomeStrong.classList.add('nome-utente');
             nomeStrong.textContent = `${msg.nome}`;
@@ -1453,14 +1512,12 @@
 
             // Contenitore per il testo (per Markdown)
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content'; // Aggiungi classe se serve stile specifico
-            
+            contentDiv.className = 'message-content'; 
+
             if (msg.type === 'text') {
-                // PARSE MARKDOWN e SANITIZE
                 const rawHtml = marked.parse(msg.testo || '');
                 contentDiv.innerHTML = DOMPurify.sanitize(rawHtml);
             } else if (msg.type === 'roll') {
-                 // Per i tiri, mantieni la formattazione speciale per il risultato
                 const [testoBase, risultatoFinale] = (msg.testo || '').split('=');
                 contentDiv.appendChild(document.createTextNode(testoBase + (risultatoFinale ? ' = ' : '')));
                 if (risultatoFinale) {
@@ -1470,29 +1527,40 @@
                     contentDiv.appendChild(risultatoStrong);
                 }
             }
-            div.appendChild(contentDiv); // Aggiungi contenuto
-            
+            div.appendChild(contentDiv); 
+
             const timeEl = document.createElement('span');
             timeEl.className = 'message-timestamp';
             timeEl.textContent = formatTimestamp(msg.timestamp);
             div.appendChild(timeEl);
-            
-            if (isGM && msg.visibility === 'public') {
-                const pinBtn = document.createElement('button');
-                pinBtn.className = 'pin-button gm-only';
-                pinBtn.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
-                pinBtn.onclick = () => { pinMessageRef.set(msg); };
-                div.appendChild(pinBtn);
-            }
 
             chatbox.appendChild(div);
             lastSenderName = msg.nome;
-            
+
             if(wasAtBottom) {
                 chatbox.scrollTop = chatbox.scrollHeight;
             }
         });
         
+        chatRef.on('child_removed', (snapshot) => {
+            const msgId = snapshot.key;
+            const msgElement = document.getElementById(msgId);
+            if (msgElement) {
+                msgElement.remove();
+            }
+        });
+
+        chatRef.on('child_changed', (snapshot) => {
+            const msg = snapshot.val();
+            const msgId = snapshot.key;
+            const msgElement = document.getElementById(msgId);
+
+            if (msgElement && msg.isDeleted) {
+                // Rimuovi il messaggio dal DOM se è stato contrassegnato come eliminato
+                msgElement.remove();
+            }
+        });
+
         let onlineUsersCache = {};
         function renderPresenceList() {
             const users = onlineUsersCache;
@@ -1768,6 +1836,24 @@
             return document.querySelector('input[name="visibility"]:checked').value;
         }
 
+        function updateReplyUI() {
+            if (currentReply) {
+                // Tronca il testo citato per sicurezza
+                const snippet = currentReply.testo.length > 40 ? currentReply.testo.substring(0, 40) + '...' : currentReply.testo;
+                replyContextText.textContent = `"${snippet}"`;
+                replyContextText.previousElementSibling.textContent = `Rispondi a: ${currentReply.nome}`;
+                replyContextBar.style.display = 'flex';
+                chatMessageInput.focus();
+            } else {
+                replyContextBar.style.display = 'none';
+            }
+        }
+
+        cancelReplyBtn.addEventListener('click', () => {
+            currentReply = null;
+            updateReplyUI();
+        });
+
         requestGmBtn.addEventListener('click', () => {
             if (!checkNome()) return;
             if (window.confirm(`Vuoi davvero inviare una richiesta per diventare GM? Il GM attuale (${gmName}) dovrà approvare.`)) {
@@ -1780,13 +1866,27 @@
             if (!checkNome()) return;
             const testo = chatMessageInput.value.trim();
             if (testo) {
-                chatRef.push({
+                // Prepara il messaggio base
+                const newMessage = {
                     nome: userName,
                     type: 'text',
                     testo: testo,
                     visibility: getVisibility(),
                     timestamp: Date.now()
-                });
+                };
+
+                // Aggiungi dati di risposta se esistono
+                if (currentReply) {
+                    newMessage.replyTo = {
+                        nome: currentReply.nome,
+                        // Salva uno snippet del testo originale
+                        testo: currentReply.testo.length > 50 ? currentReply.testo.substring(0, 50) + '...' : currentReply.testo
+                    };
+                    currentReply = null; // Resetta
+                    updateReplyUI(); // Nascondi la barra
+                }
+
+                chatRef.push(newMessage);
                 chatMessageInput.value = '';
             }
         });
