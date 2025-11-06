@@ -103,6 +103,8 @@
     const vttTokenOwnerSelect = document.getElementById('vtt-token-owner'); 
     const vttTokenUrlInput = document.getElementById('vtt-token-url');
     const vttAddTokenBtn = document.getElementById('vtt-add-token');
+    const vttUploadTokenImageBtn = document.getElementById('vtt-upload-token-image-btn');
+    const vttTokenFileInput = document.getElementById('vtt-token-file-input');
     const drawingToolRadios = document.querySelectorAll('input[name="vtt-tool"]'); // Cambiato name
     const drawingColorInput = document.getElementById('drawing-color');
     const drawingStrokeWidthInput = document.getElementById('drawing-stroke-width');
@@ -125,6 +127,14 @@
     const gmPanelCloseBtn = document.getElementById('gm-panel-close-btn');
     const gmTabButtons = document.querySelectorAll('.gm-tab-button');
     const gmTabPanes = document.querySelectorAll('.gm-tab-pane');
+    const editTokenModal = document.getElementById('edit-token-modal');
+    const editTokenCloseBtn = document.getElementById('edit-token-close-btn');
+    const editTokenSaveBtn = document.getElementById('edit-token-save-btn');
+    const editTokenDeleteBtn = document.getElementById('edit-token-delete-btn');
+    const editTokenName = document.getElementById('edit-token-name');
+    const editTokenUrl = document.getElementById('edit-token-url');
+    const editTokenColor = document.getElementById('edit-token-color');
+    const editTokenOwner = document.getElementById('edit-token-owner');
 
     const replyContextBar = document.getElementById('reply-context-bar');
     const replyContextText = document.getElementById('reply-context-text');
@@ -154,6 +164,7 @@
     let activeConfigRef = null;
     let activeTokensRef = null;
     let activeDrawingsRef = null;
+    let currentEditingTokenId = null;
 
     let stage; // Konva Stage
     let mapLayer;
@@ -353,12 +364,10 @@
         const tokenY = tokenData.y || 0;
 
         if (!tokenShape) {
-            // --- [MODIFICA] L'origine (x,y) ora è il CENTRO. Rimosso dragBoundFunc ---
             tokenShape = new Konva.Group({
                 id: tokenId, x: tokenX, y: tokenY, draggable: canDrag
             });
 
-            // --- [NUOVO] Listener per lo "snap" durante il trascinamento ---
             tokenShape.on('dragmove.snap', () => {
                 // Prendi la posizione REALE del mouse nel mondo
                 const pos = stage.getRelativePointerPosition();
@@ -421,9 +430,18 @@
             // Elimina il token con doppio click (solo GM)
             if (isGM) {
                 tokenShape.on('dblclick dbltap', () => {
-                    if (window.confirm(`Eliminare il token "${tokenData.name}"?`)) {
-                        if (activeTokensRef) activeTokensRef.child(tokenId).remove()
-                    }
+                    currentEditingTokenId = tokenId; // Salva l'ID del token che stiamo modificando
+
+                    // Popola il modale
+                    editTokenName.value = tokenData.name;
+                    editTokenUrl.value = tokenData.imageUrl || '';
+                    editTokenColor.value = tokenData.color || '#ff0000';
+
+                    // Ricrea le opzioni del proprietario (come in renderPresenceList)
+                    editTokenOwner.innerHTML = vttTokenOwnerSelect.innerHTML; 
+                    editTokenOwner.value = tokenData.owner || '';
+
+                    editTokenModal.classList.add('is-visible');
                 });
             }
             tokenLayer.add(tokenShape);
@@ -703,6 +721,11 @@
             const color = drawingColorInput.value;
             const strokeWidth = parseInt(drawingStrokeWidthInput.value) || 2;
 
+            if (isGM && (currentDrawingTool === 'rect' || currentDrawingTool === 'circle')) {
+                startPoint.x = Math.round(startPoint.x / gridOptions.size) * gridOptions.size;
+                startPoint.y = Math.round(startPoint.y / gridOptions.size) * gridOptions.size;
+            }
+
             // Crea forma temporanea (o linea di misura)
             if (currentDrawingTool === 'ruler') {
                 // 'startPoint' (impostato poche righe sopra) è il click esatto.
@@ -755,7 +778,12 @@
 
         stage.on('mousemove touchmove', () => {
             if (!isDrawing) return;
-            const pos = stage.getRelativePointerPosition();
+            let pos = stage.getRelativePointerPosition();
+
+            if (isGM && (currentDrawingTool === 'rect' || currentDrawingTool === 'circle')) {
+                pos.x = Math.round(pos.x / gridOptions.size) * gridOptions.size;
+                pos.y = Math.round(pos.y / gridOptions.size) * gridOptions.size;
+            }
 
             if (currentDrawingTool === 'ruler' && measurementLine) {
                 // 1. Calcola il centro della cella di destinazione
@@ -787,7 +815,8 @@
             } else if (isGM && currentShape) { // Disegno GM
                 switch(currentDrawingTool) {
                     case 'freehand':
-                        const newPoints = currentShape.points().concat([pos.x, pos.y]);
+                        const freehandPos = stage.getRelativePointerPosition(); // Rileggi la pos esatta
+                        const newPoints = currentShape.points().concat([freehandPos.x, freehandPos.y]);
                         currentShape.points(newPoints);
                         break;
                     case 'rect':
@@ -1087,17 +1116,24 @@
     function lockNameControls() {
         document.body.classList.add('is-logged-in');
 
+        const sidebarIsCollapsed = localStorage.getItem('sidebarCollapsed') !== 'false';
+
         mainContent.style.transition = 'none';
-
-        mainContent.classList.add('sidebar-collapsed'); 
-
         const icon = vttToggleSidebarBtn.querySelector('i');
-        icon.classList.remove('fa-xmark');
-        icon.classList.add('fa-bars');
-        vttToggleSidebarBtn.title = "Mostra Sidebar";
+
+        if (sidebarIsCollapsed) {
+            mainContent.classList.add('sidebar-collapsed');
+            icon.classList.remove('fa-xmark');
+            icon.classList.add('fa-bars');
+            vttToggleSidebarBtn.title = "Mostra sidebar";
+        } else {
+            mainContent.classList.remove('sidebar-collapsed');
+            icon.classList.remove('fa-bars');
+            icon.classList.add('fa-xmark');
+            vttToggleSidebarBtn.title = "Nascondi sidebar";
+        }
 
         mainContent.offsetHeight;
-
         mainContent.style.transition = '';
 
         if (isGM) {
@@ -1150,6 +1186,13 @@
             lockNameControls();
             loadMacros();
         }
+
+        const savedTool = localStorage.getItem('vttActiveTool') || 'select';
+        const toolRadio = document.querySelector(`input[name="vtt-tool"][value="${savedTool}"]`);
+        if (toolRadio) {
+            toolRadio.checked = true;
+            toolRadio.dispatchEvent(new Event('change')); // Forza l'aggiornamento
+        }
     })();
 
     themeToggleBtn.addEventListener('click', () => {
@@ -1197,6 +1240,8 @@
         // Attiva/disattiva la classe sul contenitore principale
         appContainer.classList.toggle('sidebar-collapsed');
 
+        localStorage.setItem('sidebarCollapsed', appContainer.classList.contains('sidebar-collapsed'));
+
         // Cambia l'icona del pulsante
         if (appContainer.classList.contains('sidebar-collapsed')) {
             icon.classList.remove('fa-xmark');
@@ -1230,6 +1275,12 @@
 
     gmPanelCloseBtn.addEventListener('click', () => {
         gmPanelModal.classList.remove('is-visible');
+    });
+
+    gmPanelModal.addEventListener('click', (e) => {
+        if (e.target === gmPanelModal) { 
+            gmPanelModal.classList.remove('is-visible');
+        }
     });
 
     function startSceneListeners() {
@@ -1735,6 +1786,13 @@
         gmRequestModal.classList.remove('is-visible');
     });
 
+    gmRequestModal.addEventListener('click', (e) => {
+        if (e.target === gmRequestModal) {
+            gmRequestRef.set(null); // Stessa logica di "rifiuta"
+            gmRequestModal.classList.remove('is-visible');
+        }
+    });
+
     chatRef.limitToLast(50).on('child_added', (snapshot) => {
         const msg = snapshot.val();
         const msgId = snapshot.key;
@@ -2080,6 +2138,8 @@
         radio.addEventListener('change', (e) => {
             currentDrawingTool = e.target.value;
 
+            localStorage.setItem('vttActiveTool', currentDrawingTool);
+
             let canDrag = true;
             let cursorStyle = 'grab'; // Default (modalità 'select')
 
@@ -2181,6 +2241,39 @@
                 // 4. Usa la variabile locale (che è ancora "scena_123") per eliminare
                 scenesRef.child(sceneIdToDelete).remove(); 
             });
+        }
+    });
+
+    function closeEditTokenModal() {
+        editTokenModal.classList.remove('is-visible');
+        currentEditingTokenId = null;
+    }
+
+    editTokenCloseBtn.addEventListener('click', closeEditTokenModal);
+    editTokenModal.addEventListener('click', (e) => {
+        if(e.target === editTokenModal) closeEditTokenModal();
+    });
+
+    editTokenSaveBtn.addEventListener('click', () => {
+        if (!currentEditingTokenId || !activeTokensRef) return;
+
+        const updates = {
+            name: editTokenName.value.trim(),
+            imageUrl: editTokenUrl.value.trim() || null,
+            color: editTokenColor.value,
+            owner: editTokenOwner.value || null
+        };
+
+        activeTokensRef.child(currentEditingTokenId).update(updates);
+        closeEditTokenModal();
+    });
+
+    editTokenDeleteBtn.addEventListener('click', () => {
+        if (!currentEditingTokenId || !activeTokensRef) return;
+
+        if (window.confirm(`Sei sicuro di voler eliminare questo token?`)) {
+            activeTokensRef.child(currentEditingTokenId).remove();
+            closeEditTokenModal();
         }
     });
 
@@ -2353,9 +2446,8 @@
         // 5. Gestisci il completamento
         uploadTask.on('state_changed',
             (snapshot) => {
-                // (Opzionale: puoi mostrare il progresso qui)
-                // const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                // console.log('Upload is ' + progress + '% done');
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                vttSetMapBtn.textContent = `Caricamento... ${Math.round(progress)}%`;
             },
             (error) => {
                 // Gestisci errore
@@ -2400,6 +2492,55 @@
         } else {
             alert('Inserisci almeno un nome per il token.');
         }
+    });
+
+    vttTokenUrlInput.addEventListener('dblclick', () => {
+        vttTokenUrlInput.readOnly = false;
+    });
+    vttTokenUrlInput.addEventListener('blur', () => {
+        vttTokenUrlInput.readOnly = true;
+    });
+
+    vttUploadTokenImageBtn.addEventListener('click', () => {
+        vttTokenFileInput.click(); 
+    });
+
+    vttTokenFileInput.addEventListener('change', () => {
+        if (!isGM) return;
+        const file = vttTokenFileInput.files[0];
+        if (!file || !file.type.startsWith('image/')) {
+            alert('Seleziona un file immagine valido.');
+            return;
+        }
+
+        // Mostra un feedback di caricamento
+        const originalText = vttAddTokenBtn.textContent;
+        vttAddTokenBtn.disabled = true;
+        vttAddTokenBtn.textContent = 'Carico img...';
+
+        const filePath = `tokens/${Date.now()}-${file.name}`;
+        const fileRef = storage.ref(filePath);
+        const uploadTask = fileRef.put(file);
+
+        uploadTask.on('state_changed', 
+            null, // Non serve il progress per i token piccoli
+            (error) => {
+                console.error("Errore caricamento token:", error);
+                alert('Errore caricamento immagine token.');
+                vttAddTokenBtn.disabled = false;
+                vttAddTokenBtn.textContent = originalText;
+            },
+            () => {
+                // Successo!
+                fileRef.getDownloadURL().then((downloadURL) => {
+                    // Incolla l'URL nel campo di testo
+                    vttTokenUrlInput.value = downloadURL;
+                    vttAddTokenBtn.disabled = false;
+                    vttAddTokenBtn.textContent = originalText;
+                    vttTokenFileInput.value = ''; // Resetta l'input file
+                });
+            }
+        );
     });
 
     // --- 7. AMMINISTRAZIONE (Solo GM) ---
