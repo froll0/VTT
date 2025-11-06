@@ -563,7 +563,7 @@
         // Calcola la nuova scala
         let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
         
-        const dynamicMinScale = Math.max(
+        const dynamicMinScale = Math.min(
             stage.width() / worldDimensions.width,
             stage.height() / worldDimensions.height
         )
@@ -872,12 +872,7 @@
             constrainStageDrag();
         });
         vttCenterViewBtn.addEventListener('click', () => {
-            if (!stage) return;
-            stage.position({ x: 0, y: 0 });
-            stage.scale({ x: 1, y: 1 });
-            stage.batchDraw();
-            drawGrid(); 
-            constrainStageDrag();
+            fitMapToView();
         });
     }
 
@@ -917,6 +912,29 @@
 
             return { x: newX, y: newY };
         });
+    }
+
+    function fitMapToView() {
+        if (!stage) return;
+
+        // 1. Calcola la scala minima per "contenere" la mappa
+        const fitScale = Math.min(
+            stage.width() / worldDimensions.width,
+            stage.height() / worldDimensions.height
+        );
+
+        // 2. Calcola la posizione per centrare la mappa
+        const newX = (stage.width() - (worldDimensions.width * fitScale)) / 2;
+        const newY = (stage.height() - (worldDimensions.height * fitScale)) / 2;
+
+        // 3. Applica scala e posizione
+        stage.scale({ x: fitScale, y: fitScale });
+        stage.position({ x: newX, y: newY });
+
+        // 4. Ridisegna e aggiorna i vincoli di drag
+        stage.batchDraw();
+        drawGrid(); 
+        constrainStageDrag();
     }
 
     // --- 3. LOGICA DI IMPOSTAZIONE (Nome, GM, Tema, Sessione) ---
@@ -1189,7 +1207,7 @@
                 worldDimensions = { width: 8000, height: 6000 };
                 loadMapBackground(null);
                 drawGrid();
-                constrainStageDrag();
+                fitMapToView();
                 return;
             }
 
@@ -1219,7 +1237,7 @@
 
                 loadMapBackground(currentSceneConfig.backgroundUrl);
                 drawGrid();
-                constrainStageDrag();
+                fitMapToView();
             });
 
             activeTokensRef.on('child_added', (snap) => drawOrUpdateToken(snap.key, snap.val()));
