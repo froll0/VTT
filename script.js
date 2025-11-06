@@ -1026,7 +1026,7 @@
                     else if (committed) {
                         isGM = true;
                         localStorage.setItem('isGM', 'true');
-                        mainContent.classList.add('gm-is-me');
+                        document.body.classList.add('is-gm');
                         attachGmRequestListener();
                         alert('Sei il GM!');
                     } else {
@@ -1049,7 +1049,20 @@
 
     function lockNameControls() {
         document.body.classList.add('is-logged-in');
-    
+
+        mainContent.style.transition = 'none';
+
+        mainContent.classList.add('sidebar-collapsed'); 
+
+        const icon = vttToggleSidebarBtn.querySelector('i');
+        icon.classList.remove('fa-xmark');
+        icon.classList.add('fa-bars');
+        vttToggleSidebarBtn.title = "Mostra Sidebar";
+
+        mainContent.offsetHeight;
+
+        mainContent.style.transition = '';
+
         if (isGM) {
             document.body.classList.add('is-gm');
         }
@@ -1565,6 +1578,7 @@
             if (gmName === userName && !isGM) {
                 isGM = true;
                 localStorage.setItem('isGM', 'true');
+                document.body.classList.add('is-gm');
                 attachGmRequestListener();
                 alert('Ora sei il GM!');
             } else if (gmName !== userName && isGM) {
