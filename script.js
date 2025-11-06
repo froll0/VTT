@@ -13,6 +13,7 @@
     // --- 1. INIZIALIZZAZIONE ---
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
+    const storage = firebase.storage();
     const chatRef = database.ref('messaggi');
     const gmStatusRef = database.ref('gmStatus');
     const pinMessageRef = database.ref('pinnedMessage');
@@ -23,13 +24,9 @@
     const turnCounterRef = database.ref('turnCounter');
     const sharedNotesRef = database.ref('sharedNotes');
     const musicRef = database.ref('currentTrack');
-    const currentTurnNameRef = database.ref('currentTurnName');
-    const vttRef = database.ref('vtt');
-    const vttMapRef = vttRef.child('map');
-    const vttTokensRef = vttRef.child('tokens');
-    const vttDrawingsRef = vttRef.child('drawings');
-    const vttConfigRef = vttRef.child('config');
-    const vttPingsRef = vttRef.child('pings');
+    const scenesRef = database.ref('scenes');
+    const vttStateRef = database.ref('vtt_state');
+    const vttPingsRef = vttStateRef.child('pings');
 
     // Riferimenti DOM
     const chatbox = document.getElementById('chatbox');
@@ -99,7 +96,7 @@
     const musicStopBtn = document.getElementById('music-stop');
 
     const vttContainer = document.getElementById('vtt-container');
-    const vttMapUrlInput = document.getElementById('vtt-map-url');
+    const vttMapFileInput = document.getElementById('vtt-map-file-input');
     const vttSetMapBtn = document.getElementById('vtt-set-map');
     const vttTokenNameInput = document.getElementById('vtt-token-name');
     const vttTokenColorInput = document.getElementById('vtt-token-color');
@@ -112,11 +109,17 @@
     const clearDrawingsBtn = document.getElementById('clear-drawings-btn');
     const gridScaleInput = document.getElementById('grid-scale');       // NUOVO Scala
     const gridUnitInput = document.getElementById('grid-unit');         // NUOVO Unità
-    const saveGridScaleBtn = document.getElementById('save-grid-scale'); // NUOVO Btn Scala
     const vttZoomInBtn = document.getElementById('vtt-zoom-in');
     const vttZoomOutBtn = document.getElementById('vtt-zoom-out');
     const vttCenterViewBtn = document.getElementById('vtt-center-view');
     const vttToggleSidebarBtn = document.getElementById('vtt-toggle-sidebar');
+    const vttUpdateGridBtn = document.getElementById('vtt-update-grid-btn'); // <-- [NUOVO] (Sostituisce il precedente)
+    const worldWidthInput = document.getElementById('world-width'); // <-- [NUOVO]
+    const worldHeightInput = document.getElementById('world-height'); // <-- [NUOVO]
+    const sceneSelect = document.getElementById('scene-select'); // <-- [NUOVO]
+    const sceneActivateBtn = document.getElementById('scene-activate-btn'); // <-- [NUOVO]
+    const sceneCreateBtn = document.getElementById('scene-create-btn'); // <-- [NUOVO]
+    const sceneDeleteBtn = document.getElementById('scene-delete-btn'); // <-- [NUOVO]
 
     const replyContextBar = document.getElementById('reply-context-bar');
     const replyContextText = document.getElementById('reply-context-text');
@@ -135,6 +138,17 @@
     let sharedNotesCache = {};
     let privateNotesCache = {};
     let currentReply = null; // Oggetto: { nome: 'Nome', testo: 'Testo...' }
+    let lastMessageTime = 0; // Timestamp dell'ultimo messaggio inviato
+    const MESSAGE_COOLDOWN = 1000; // Tempo minimo in ms (1000 = 1 secondo)
+
+    let activeSceneId = null;
+    let currentSceneConfig = {}; // Cache per la config della scena attiva
+    let worldDimensions = { width: 8000, height: 6000 }; // Valori di default
+    let scenesCache = {}; // Cache per i nomi delle scene
+    // Riferimenti dinamici che cambieranno con la scena
+    let activeConfigRef = null;
+    let activeTokensRef = null;
+    let activeDrawingsRef = null;
 
     let stage; // Konva Stage
     let mapLayer;
@@ -272,45 +286,23 @@
 
         const size = gridOptions.size;
         const scale = stage.scaleX(); // Scala corrente
-
-        // Ottimizzazione: non disegnare la griglia se è troppo piccola
-        const scaledSize = size * scale;
-        if (scaledSize < 4) return;
-
-        // Calcola l'area del mondo visibile
-        const viewW = stage.width();
-        const viewH = stage.height();
-
-        // (tx, ty) è la posizione (0,0) del mondo sullo schermo
-        const tx = stage.x();
-        const ty = stage.y();
-
-        const x1 = (-tx) / scale;
-        const y1 = (-ty) / scale;
-        const x2 = (viewW - tx) / scale;
-        const y2 = (viewH - ty) / scale;
-
-        const startX = Math.floor(x1 / size) * size;
-        const startY = Math.floor(y1 / size) * size;
-        const endX = Math.ceil(x2 / size) * size;
-        const endY = Math.ceil(y2 / size) * size;
-
-        // Spessore linea dinamico (più sottile quando si fa zoom-out)
         const strokeWidth = Math.max(0.5, 1 / scale);
+        if (size * scale < 4) return;
 
-        // Disegna le linee (in coordinate del *mondo*)
-        // Konva le trasformerà automaticamente con il layer
-        for (let i = startX; i <= endX; i += size) {
+        const worldWidth = worldDimensions.width;
+        const worldHeight = worldDimensions.height;
+
+        for (let i = 0; i <= worldWidth; i += size) {
             gridLayer.add(new Konva.Line({
-                points: [i, startY, i, endY],
+                points: [i, 0, i, worldHeight], // Modificato
                 stroke: gridOptions.color,
                 strokeWidth: strokeWidth,
-                listening: false // La griglia non deve essere cliccabile
+                listening: false
             }));
         }
-        for (let j = startY; j <= endY; j += size) {
+        for (let j = 0; j <= worldHeight; j += size) {
             gridLayer.add(new Konva.Line({
-                points: [startX, j, endX, j],
+                points: [0, j, worldWidth, j], // Modificato
                 stroke: gridOptions.color,
                 strokeWidth: strokeWidth,
                 listening: false
@@ -320,6 +312,7 @@
     }
 
     function loadMapBackground(url) {
+        currentMapUrl = url;
         if (!mapLayer || !stage) return;
         mapLayer.destroyChildren();
 
@@ -329,26 +322,12 @@
         }
 
         Konva.Image.fromURL(url, (img) => {
-            const stageW = stage.width();
-            const stageH = stage.height();
-            const imgW = img.width();
-            const imgH = img.height();
-
-            // Calcola il rapporto per "contenere" l'immagine mantenendo le proporzioni
-            const ratio = Math.min(stageW / imgW, stageH / imgH);
-
-            const newW = imgW * ratio;
-            const newH = imgH * ratio;
-
-            // Centra l'immagine nello stage
-            const newX = (stageW - newW) / 2;
-            const newY = (stageH - newH) / 2;
-
             img.setAttrs({
-                x: newX,
-                y: newY,
-                width: newW,
-                height: newH
+                x: 0,
+                y: 0,
+                width: worldDimensions.width,
+                height: worldDimensions.height,
+                listening: false
             });
 
             mapLayer.add(img);
@@ -382,8 +361,11 @@
 
                 // Calcola il centro della cella più vicina al mouse
                 const halfGrid = gridOptions.size / 2;
-                const snapX = Math.floor(pos.x / gridOptions.size) * gridOptions.size + halfGrid;
-                const snapY = Math.floor(pos.y / gridOptions.size) * gridOptions.size + halfGrid;
+                let snapX = Math.floor(pos.x / gridOptions.size) * gridOptions.size + halfGrid;
+                let snapY = Math.floor(pos.y / gridOptions.size) * gridOptions.size + halfGrid;
+
+                snapX = Math.max(halfGrid, Math.min(worldDimensions.width - halfGrid, snapX));
+                snapY = Math.max(halfGrid, Math.min(worldDimensions.height - halfGrid, snapY));
 
                 // Forza il token su quel centro
                 tokenShape.position({ x: snapX, y: snapY });
@@ -425,9 +407,9 @@
             // Eventi (invariati)
             // Salva la posizione quando il token viene spostato
             tokenShape.on('dragend', () => {
-                if(canDrag) {
+                if(canDrag && activeTokensRef) {
                     const newPos = tokenShape.position();
-                    vttTokensRef.child(tokenId).update({ x: newPos.x, y: newPos.y });
+                    activeTokensRef.child(tokenId).update({ x: newPos.x, y: newPos.y });
                 }
             });
 
@@ -435,7 +417,7 @@
             if (isGM) {
                 tokenShape.on('dblclick dbltap', () => {
                     if (window.confirm(`Eliminare il token "${tokenData.name}"?`)) {
-                        vttTokensRef.child(tokenId).remove();
+                        if (activeTokensRef) activeTokensRef.child(tokenId).remove()
                     }
                 });
             }
@@ -547,7 +529,7 @@
             if (isGM) {
                 shape.on('dblclick dbltap', () => {
                     if (window.confirm('Eliminare questo disegno?')) {
-                        vttDrawingsRef.child(shapeId).remove();
+                        if (activeDrawingsRef) activeDrawingsRef.child(shapeId).remove();
                     }
                 });
             }
@@ -602,8 +584,10 @@
 
         if (stage) {
             stage.size({ width: containerWidth, height: containerHeight });
-            drawGrid(); // Ridisegna griglia per nuove dimensioni
-            //loadMapBackground(vttMapRef.snapshot?.val()?.backgroundUrl); // Ricarica mappa
+            // Ricarica la mappa con le dimensioni corrette
+            loadMapBackground(currentMapUrl);
+            drawGrid();
+            constrainStageDrag(); // Ricalcola i bordi
             return;
         }
 
@@ -619,13 +603,10 @@
         drawingLayer = new Konva.Layer();
         tokenLayer = new Konva.Layer();
         tempLayer = new Konva.Layer();
+        stage.add(mapLayer, gridLayer, drawingLayer, tokenLayer, tempLayer);
 
-        stage.add(mapLayer);
-        stage.add(gridLayer);
-        stage.add(drawingLayer);
-        stage.add(tokenLayer);
-        stage.add(tempLayer);
-        drawGrid();
+        drawGrid(); // Disegna la griglia iniziale (vuota)
+        constrainStageDrag(); // Applica i vincoli iniziali
 
         stage.on('click tap', (e) => {
             if (e.target !== stage) { // Click su un token/disegno, non sullo stage
@@ -642,17 +623,23 @@
                 const halfGrid = gridOptions.size / 2;
                 const x = Math.floor(pos.x / gridOptions.size) * gridOptions.size + halfGrid;
                 const y = Math.floor(pos.y / gridOptions.size) * gridOptions.size + halfGrid;
-                
+
                 const owner = vttTokenOwnerSelect.value || null;
-                
-                vttTokensRef.push({
-                    name: tokenToAdd.name,
-                    color: tokenToAdd.color,
-                    imageUrl: tokenToAdd.imageUrl,
-                    x: x, // Salva la X del CENTRO
-                    y: y, // Salva la Y del CENTRO
-                    owner: owner
-                });
+
+                if (activeTokensRef) {
+                    // Usa il riferimento alla scena attiva
+                    activeTokensRef.push({
+                        name: tokenToAdd.name,
+                        color: tokenToAdd.color,
+                        imageUrl: tokenToAdd.imageUrl,
+                        x: x,
+                        y: y,
+                        owner: owner
+                    });
+                } else {
+                    console.error("Nessuna scena attiva per salvare il token.");
+                }
+
                 tokenToAdd = null;
                 vttContainer.style.cursor = 'default';
 
@@ -812,8 +799,12 @@
                         break;
                 }
 
-                // Aggiunge a Firebase (senza ID locale temporaneo, Firebase lo genera)
-                vttDrawingsRef.push(shapeData);
+                if (activeDrawingsRef) {
+                    // Usa il riferimento alla scena attiva
+                    activeDrawingsRef.push(shapeData);
+                } else {
+                    console.error("Nessuna scena attiva per salvare il disegno.");
+                }
 
                 // Rimuovi la forma temporanea (verrà ridisegnata dal listener Firebase)
                 currentShape.destroy();
@@ -845,11 +836,8 @@
 
             // Determina la direzione dello zoom e la nuova scala
             const direction = e.evt.deltaY > 0 ? -1 : 1; // -1 zoom out, 1 zoom in
-            zoomStage(direction, pointer)
-        });
-
-        stage.on('dragmove.grid', () => {
-            drawGrid();
+            zoomStage(direction, pointer);
+            constrainStageDrag()
         });
 
         window.addEventListener('resize', () => {
@@ -860,22 +848,22 @@
                     if (newWidth > 0 && newHeight > 0) {
                         stage.size({ width: newWidth, height: newHeight });
 
-                        if(gridLayer) {
-                            drawGrid();
-                        }
-                        if(mapLayer) {
-                            loadMapBackground(currentMapUrl); 
-                        }
+                        if (gridLayer) drawGrid();
+                        if (mapLayer) loadMapBackground(currentMapUrl); 
+
+                        constrainStageDrag();
                     }
                 }
             });
         });
 
         vttZoomInBtn.addEventListener('click', () => {
-            zoomStage(1, null); // direction 1 (zoom in), centro (null)
+            zoomStage(1, null);
+            constrainStageDrag();
         });
         vttZoomOutBtn.addEventListener('click', () => {
-            zoomStage(-1, null); // direction -1 (zoom out), centro (null)
+            zoomStage(-1, null);
+            constrainStageDrag();
         });
         vttCenterViewBtn.addEventListener('click', () => {
             if (!stage) return;
@@ -883,6 +871,41 @@
             stage.scale({ x: 1, y: 1 });
             stage.batchDraw();
             drawGrid(); 
+            constrainStageDrag();
+        });
+    }
+
+    function constrainStageDrag() {
+        if (!stage) return;
+
+        stage.dragBoundFunc((pos) => {
+            const scale = stage.scaleX();
+            const viewW = stage.width();
+            const viewH = stage.height();
+
+            // Calcola i limiti del mondo scalati
+            const worldW = worldDimensions.width * scale;
+            const worldH = worldDimensions.height * scale;
+
+            // Calcola la posizione X minima/massima
+            // Non permettere a x di essere > 0 (bordo sx)
+            // Non permettere a x di essere < -(differenza tra mondo e vista) (bordo dx)
+            let newX = Math.min(0, pos.x);
+            if (worldW > viewW) {
+                newX = Math.max(newX, viewW - worldW);
+            } else {
+                newX = 0; // Se la mappa è più piccola della vista, tienila a 0
+            }
+
+            // Calcola la posizione Y minima/massima
+            let newY = Math.min(0, pos.y);
+            if (worldH > viewH) {
+                newY = Math.max(newY, viewH - worldH);
+            } else {
+                newY = 0; // Se la mappa è più piccola della vista, tienila a 0
+            }
+
+            return { x: newX, y: newY };
         });
     }
 
@@ -1004,6 +1027,7 @@
         }
 
         initializeVTT();
+        startSceneListeners();
     }
 
     (function loadSessionAndTheme() {
@@ -1111,6 +1135,96 @@
         }, 310); // 310ms (appena dopo la fine della transizione di 0.3s)
     });
 
+    function startSceneListeners() {
+        // Listener per popolare il dropdown
+        scenesRef.on('value', (snapshot) => {
+            scenesCache = snapshot.val() || {};
+            sceneSelect.innerHTML = ''; // Pulisci il dropdown
+
+            if (Object.keys(scenesCache).length === 0) {
+                sceneSelect.innerHTML = '<option value="">-- Crea una scena --</option>';
+                return;
+            }
+
+            for (const [id, scene] of Object.entries(scenesCache)) {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = scene.config?.name || 'Scena senza nome';
+                if (id === activeSceneId) {
+                    option.selected = true;
+                }
+                sceneSelect.appendChild(option);
+            }
+        });
+
+        // Listener per cambiare scena
+        vttStateRef.child('activeSceneId').on('value', (snapshot) => {
+            const newSceneId = snapshot.val();
+
+            if (activeSceneId === newSceneId) return; 
+
+            if (activeConfigRef) activeConfigRef.off();
+            if (activeTokensRef) activeTokensRef.off();
+            if (activeDrawingsRef) activeDrawingsRef.off();
+
+            if (mapLayer) mapLayer.destroyChildren();
+            if (tokenLayer) tokenLayer.destroyChildren();
+            if (drawingLayer) drawingLayer.destroyChildren();
+
+            activeSceneId = newSceneId;
+            if (sceneSelect.value !== newSceneId) sceneSelect.value = newSceneId; // Aggiorna UI
+
+            if (!newSceneId) {
+                currentSceneConfig = {};
+                worldDimensions = { width: 8000, height: 6000 };
+                loadMapBackground(null);
+                drawGrid();
+                constrainStageDrag();
+                return;
+            }
+
+            activeConfigRef = scenesRef.child(newSceneId).child('config');
+            activeTokensRef = scenesRef.child(newSceneId).child('tokens');
+            activeDrawingsRef = scenesRef.child(newSceneId).child('drawings');
+
+            activeConfigRef.on('value', (configSnap) => {
+                currentSceneConfig = configSnap.val() || {};
+                worldDimensions.width = currentSceneConfig.worldWidth || 8000;
+                worldDimensions.height = currentSceneConfig.worldHeight || 6000;
+                gridScale = currentSceneConfig.gridScale || 1.5;
+                gridUnit = currentSceneConfig.gridUnit || 'm';
+
+                if (isGM) {
+                gridScaleInput.value = gridScale;
+                gridUnitInput.value = gridUnit;
+                worldWidthInput.value = worldDimensions.width;
+                worldHeightInput.value = worldDimensions.height;
+                }
+
+                loadMapBackground(currentSceneConfig.backgroundUrl);
+                drawGrid();
+                constrainStageDrag();
+            });
+
+            activeTokensRef.on('child_added', (snap) => drawOrUpdateToken(snap.key, snap.val()));
+            activeTokensRef.on('child_changed', (snap) => drawOrUpdateToken(snap.key, snap.val()));
+            activeTokensRef.on('child_removed', (snap) => {
+                if (stage) {
+                    const token = stage.findOne('#' + snap.key);
+                    if (token) token.destroy();
+                }
+            });
+
+            activeDrawingsRef.on('child_added', (snap) => drawOrUpdateShape(snap.key, snap.val()));
+            activeDrawingsRef.on('child_removed', (snap) => {
+                if (stage) {
+                    const shape = stage.findOne('#' + snap.key);
+                    if (shape) shape.destroy();
+                }
+            });
+        });
+    }
+
     function loadMacros() {
         if (!userName) return;
         usersRef.child(userName).child('macros').on('value', (snapshot) => {
@@ -1163,35 +1277,18 @@
         }
     });
 
+    clearDrawingsBtn.addEventListener('click', () => {
+        if (isGM && activeDrawingsRef && window.confirm('Sei sicuro di voler CANCELLARE TUTTI i disegni su QUESTA SCENA?')) {
+            activeDrawingsRef.set(null); // Cancella solo i disegni della scena attiva
+        } else if (!activeDrawingsRef) {
+            alert("Nessuna scena attiva selezionata.");
+        }
+    });
+
     rollMacroBtn.addEventListener('click', () => {
         const command = macroSelect.value;
         if (command) {
             handleRoll(command);
-        }
-    });
-
-    vttDrawingsRef.on('child_added', (snapshot) => {
-        drawOrUpdateShape(snapshot.key, snapshot.val());
-    });
-
-    vttDrawingsRef.on('child_removed', (snapshot) => {
-        if (stage) {
-            const shape = stage.findOne('#' + snapshot.key);
-            if (shape) {
-                shape.destroy();
-                drawingLayer.batchDraw();
-            }
-        }
-    });
-
-    vttConfigRef.on('value', (snapshot) => {
-        const config = snapshot.val() || {};
-        gridScale = parseFloat(config.gridScale) || 1.5;
-        gridUnit = config.gridUnit || 'm';
-        // Aggiorna UI se necessario (potrebbe essere utile mostrarli anche ai player)
-        if (isGM) { // Solo GM vede gli input, aggiornali
-            gridScaleInput.value = gridScale;
-            gridUnitInput.value = gridUnit;
         }
     });
 
@@ -1228,31 +1325,6 @@
 
         if (isGM) {
             setTimeout(() => vttPingsRef.child(snapshot.key).remove(), 5000);
-        }
-    });
-
-    vttMapRef.on('value', (snapshot) => {
-        const mapData = snapshot.val() || {};
-        loadMapBackground(mapData.backgroundUrl);
-        // Qui potresti leggere anche gridOptions se le salvi su Firebase
-        drawGrid(); // Ridisegna griglia (utile se cambi opzioni)
-    });
-
-    vttTokensRef.on('child_added', (snapshot) => {
-        drawOrUpdateToken(snapshot.key, snapshot.val());
-    });
-
-    vttTokensRef.on('child_changed', (snapshot) => {
-        drawOrUpdateToken(snapshot.key, snapshot.val());
-    });
-
-    vttTokensRef.on('child_removed', (snapshot) => {
-        if (stage) {
-            const tokenShape = stage.findOne('#' + snapshot.key);
-            if (tokenShape) {
-                tokenShape.destroy();
-                stage.batchDraw();
-            }
         }
     });
 
@@ -1941,20 +2013,70 @@
         });
     });
 
-    clearDrawingsBtn.addEventListener('click', () => {
-        if (isGM && window.confirm('Sei sicuro di voler CANCELLARE TUTTI i disegni sulla mappa?')) {
-            vttDrawingsRef.set(null); // Cancella tutti i disegni da Firebase
+    // Sostituisci il vecchio listener
+    vttUpdateGridBtn.addEventListener('click', () => {
+        if (!isGM || !activeConfigRef) return;
+
+        const scale = parseFloat(gridScaleInput.value);
+        const unit = gridUnitInput.value.trim() || 'm';
+        const width = parseInt(worldWidthInput.value) || 8000;
+        const height = parseInt(worldHeightInput.value) || 6000;
+
+        if (scale > 0 && width > 0 && height > 0) {
+            activeConfigRef.update({
+                gridScale: scale,
+                gridUnit: unit,
+                worldWidth: width,
+                worldHeight: height
+            });
+        } else {
+            alert("Inserisci valori validi (maggiori di 0) per dimensioni e scala.");
         }
     });
 
-    saveGridScaleBtn.addEventListener('click', () => {
+    // --- [NUOVI] Listener Gestione Scene ---
+    sceneCreateBtn.addEventListener('click', () => {
         if (!isGM) return;
-        const scale = parseFloat(gridScaleInput.value);
-        const unit = gridUnitInput.value.trim() || 'm';
-        if (!isNaN(scale) && scale > 0) {
-            vttConfigRef.update({ gridScale: scale, gridUnit: unit });
-        } else {
-            alert("Inserisci un valore numerico valido maggiore di 0 per la scala.");
+        const sceneName = prompt("Inserisci il nome della nuova scena:");
+        if (sceneName) {
+            const newSceneRef = scenesRef.push({
+                config: {
+                    name: sceneName,
+                    backgroundUrl: null,
+                    worldWidth: 4000,
+                    worldHeight: 3000,
+                    gridScale: 1.5,
+                    gridUnit: 'm'
+                }
+            });
+            // Attiva automaticamente la nuova scena
+            vttStateRef.child('activeSceneId').set(newSceneRef.key);
+        }
+    });
+
+    sceneActivateBtn.addEventListener('click', () => {
+        const selectedId = sceneSelect.value;
+        if (selectedId) {
+            vttStateRef.child('activeSceneId').set(selectedId);
+        }
+    });
+
+    sceneDeleteBtn.addEventListener('click', () => {
+        const sceneIdToDelete = activeSceneId; 
+
+        // 2. Controlla la variabile locale
+        if (!isGM || !sceneIdToDelete) { 
+            alert("Nessuna scena attiva da eliminare.");
+            return;
+        }
+
+        const sceneName = scenesCache[sceneIdToDelete]?.config?.name || 'Scena Sconosciuta';
+        if (window.confirm(`Sei sicuro di voler eliminare per sempre la scena "${sceneName}"?`)) {
+            // 3. Imposta la scena attiva a null
+            vttStateRef.child('activeSceneId').set(null).then(() => {
+                // 4. Usa la variabile locale (che è ancora "scena_123") per eliminare
+                scenesRef.child(sceneIdToDelete).remove(); 
+            });
         }
     });
 
@@ -2001,8 +2123,17 @@
 
     sendMessageBtn.addEventListener('click', () => {
         if (!checkNome()) return;
+
+        const now = Date.now();
+        if (now - lastMessageTime < MESSAGE_COOLDOWN) {
+            console.warn("Anti-spam: Messaggio bloccato.");
+            return;
+        }
+
         const testo = chatMessageInput.value.trim();
         if (testo) {
+            lastMessageTime = now;
+
             // Prepara il messaggio base
             const newMessage = {
                 nome: userName,
@@ -2032,6 +2163,13 @@
     function handleRoll(comando) {
         if (!checkNome()) return;
         if (!comando) return;
+
+        const now = Date.now();
+        if (now - lastMessageTime < MESSAGE_COOLDOWN) {
+            console.warn("Anti-spam: Tiro bloccato.");
+            return; // Blocca l'invio
+        }
+        lastMessageTime = now; // Aggiorna il timestamp
 
         const isTurnRoll = isTurnRollCheck.checked;
         let visibility = getVisibility();
@@ -2078,13 +2216,71 @@
     customCommandInput.addEventListener('keypress', (e) => e.key === 'Enter' && rollCustomBtn.click());
 
     vttSetMapBtn.addEventListener('click', () => {
-        if (!isGM) return;
-        const url = vttMapUrlInput.value.trim();
-        vttMapRef.update({ backgroundUrl: url || null }); // Salva URL o null
+        if (!isGM || !activeConfigRef) { // Controlla il config ref
+            alert("Nessuna scena attiva selezionata.");
+            return;
+        }
+
+        const file = vttMapFileInput.files[0];
+
+        if (!file) {
+            alert('Per favore, seleziona un file immagine da caricare.');
+            return;
+        }
+
+        // 1. (Opzionale) Controlla il tipo di file
+        if (!file.type.startsWith('image/')) {
+            alert('Puoi caricare solo file immagine (png, jpg, gif, webp).');
+            return;
+        }
+
+        // 2. Disabilita il bottone per evitare doppi click
+        vttSetMapBtn.disabled = true;
+        vttSetMapBtn.textContent = 'Caricamento...';
+
+        // 3. Crea un percorso univoco su Firebase Storage
+        // Es: maps/167888654123-mia-mappa.jpg
+        const filePath = `maps/${Date.now()}-${file.name}`;
+        const fileRef = storage.ref(filePath);
+
+        // 4. Avvia il caricamento
+        const uploadTask = fileRef.put(file);
+
+        // 5. Gestisci il completamento
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // (Opzionale: puoi mostrare il progresso qui)
+                // const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                // console.log('Upload is ' + progress + '% done');
+            },
+            (error) => {
+                // Gestisci errore
+                console.error("Errore caricamento mappa:", error);
+                alert('Errore durante il caricamento della mappa.');
+                vttSetMapBtn.disabled = false;
+                vttSetMapBtn.textContent = 'Carica e Imposta Mappa';
+            },
+            () => {
+                // Caricamento completato con successo
+                fileRef.getDownloadURL().then((downloadURL) => {
+                    // 6. [MODIFICA] Salva l'URL nella scena attiva
+                    activeConfigRef.update({ backgroundUrl: downloadURL });
+
+                    // 7. Resetta il bottone e l'input
+                    vttSetMapBtn.disabled = false;
+                    vttSetMapBtn.textContent = 'Carica e Imposta Mappa';
+                    vttMapFileInput.value = '';
+                });
+            }
+        );
     });
 
     vttAddTokenBtn.addEventListener('click', () => {
-        if (!isGM) return;
+        if (!isGM || !activeTokensRef) {
+            alert("Nessuna scena attiva selezionata.");
+            return;
+        }
+
         const name = vttTokenNameInput.value.trim();
         const color = vttTokenColorInput.value;
         const owner = vttTokenOwnerSelect.value || null;
