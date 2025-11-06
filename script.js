@@ -562,7 +562,13 @@
 
         // Calcola la nuova scala
         let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-        newScale = Math.max(minScale, Math.min(maxScale, newScale));
+        
+        const dynamicMinScale = Math.max(
+            stage.width() / worldDimensions.width,
+            stage.height() / worldDimensions.height
+        )
+
+        newScale = Math.max(dynamicMinScale, Math.min(maxScale, newScale));
 
         if (newScale === oldScale) return;
 
@@ -887,22 +893,26 @@
             const worldW = worldDimensions.width * scale;
             const worldH = worldDimensions.height * scale;
 
-            // Calcola la posizione X minima/massima
-            // Non permettere a x di essere > 0 (bordo sx)
-            // Non permettere a x di essere < -(differenza tra mondo e vista) (bordo dx)
-            let newX = Math.min(0, pos.x);
-            if (worldW > viewW) {
-                newX = Math.max(newX, viewW - worldW);
+            let newX, newY;
+
+            // --- [FIX] Logica Asse X ---
+            if (worldW < viewW) {
+                // Se il mondo è PIÙ PICCOLO della vista, centralo
+                newX = (viewW - worldW) / 2;
             } else {
-                newX = 0; // Se la mappa è più piccola della vista, tienila a 0
+                // Altrimenti, vincola i bordi
+                newX = Math.max(pos.x, viewW - worldW); // Vincola bordo sinistro
+                newX = Math.min(newX, 0); // Vincola bordo destro
             }
 
-            // Calcola la posizione Y minima/massima
-            let newY = Math.min(0, pos.y);
-            if (worldH > viewH) {
-                newY = Math.max(newY, viewH - worldH);
+            // --- [FIX] Logica Asse Y ---
+            if (worldH < viewH) {
+                // Se il mondo è PIÙ PICCOLO della vista, centralo
+                newY = (viewH - worldH) / 2;
             } else {
-                newY = 0; // Se la mappa è più piccola della vista, tienila a 0
+                // Altrimenti, vincola i bordi
+                newY = Math.max(pos.y, viewH - worldH); // Vincola bordo superiore
+                newY = Math.min(newY, 0); // Vincola bordo inferiore
             }
 
             return { x: newX, y: newY };
@@ -1189,16 +1199,22 @@
 
             activeConfigRef.on('value', (configSnap) => {
                 currentSceneConfig = configSnap.val() || {};
-                worldDimensions.width = currentSceneConfig.worldWidth || 8000;
-                worldDimensions.height = currentSceneConfig.worldHeight || 6000;
+
+                const gridW_squares = currentSceneConfig.gridWidth || 80;
+                const gridH_squares = currentSceneConfig.gridHeight || 60;
+                const squareSize = gridOptions.size;
+
+                worldDimensions.width = gridW_squares * squareSize;
+                worldDimensions.height = gridH_squares * squareSize;
+
                 gridScale = currentSceneConfig.gridScale || 1.5;
                 gridUnit = currentSceneConfig.gridUnit || 'm';
 
                 if (isGM) {
-                gridScaleInput.value = gridScale;
-                gridUnitInput.value = gridUnit;
-                worldWidthInput.value = worldDimensions.width;
-                worldHeightInput.value = worldDimensions.height;
+                    gridScaleInput.value = gridScale;
+                    gridUnitInput.value = gridUnit;
+                    worldWidthInput.value = gridW_squares;
+                    worldHeightInput.value = gridH_squares;
                 }
 
                 loadMapBackground(currentSceneConfig.backgroundUrl);
@@ -2019,22 +2035,21 @@
 
         const scale = parseFloat(gridScaleInput.value);
         const unit = gridUnitInput.value.trim() || 'm';
-        const width = parseInt(worldWidthInput.value) || 8000;
-        const height = parseInt(worldHeightInput.value) || 6000;
+        const gridW_squares = parseInt(worldWidthInput.value) || 80;
+        const gridH_squares = parseInt(worldHeightInput.value) || 60;
 
-        if (scale > 0 && width > 0 && height > 0) {
+        if (scale > 0 && gridW_squares > 0 && gridH_squares > 0) {
             activeConfigRef.update({
                 gridScale: scale,
                 gridUnit: unit,
-                worldWidth: width,
-                worldHeight: height
+                gridWidth: gridW_squares,
+                gridHeight: gridH_squares
             });
         } else {
             alert("Inserisci valori validi (maggiori di 0) per dimensioni e scala.");
         }
     });
 
-    // --- [NUOVI] Listener Gestione Scene ---
     sceneCreateBtn.addEventListener('click', () => {
         if (!isGM) return;
         const sceneName = prompt("Inserisci il nome della nuova scena:");
@@ -2043,8 +2058,8 @@
                 config: {
                     name: sceneName,
                     backgroundUrl: null,
-                    worldWidth: 4000,
-                    worldHeight: 3000,
+                    gridWidth: 80,
+                    gridHeight: 60,
                     gridScale: 1.5,
                     gridUnit: 'm'
                 }
