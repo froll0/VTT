@@ -120,6 +120,11 @@
     const sceneActivateBtn = document.getElementById('scene-activate-btn'); // <-- [NUOVO]
     const sceneCreateBtn = document.getElementById('scene-create-btn'); // <-- [NUOVO]
     const sceneDeleteBtn = document.getElementById('scene-delete-btn'); // <-- [NUOVO]
+    const vttGmPanelBtn = document.getElementById('vtt-gm-panel-btn');
+    const gmPanelModal = document.getElementById('gm-panel-modal');
+    const gmPanelCloseBtn = document.getElementById('gm-panel-close-btn');
+    const gmTabButtons = document.querySelectorAll('.gm-tab-button');
+    const gmTabPanes = document.querySelectorAll('.gm-tab-pane');
 
     const replyContextBar = document.getElementById('reply-context-bar');
     const replyContextText = document.getElementById('reply-context-text');
@@ -509,7 +514,7 @@
                 draggable: false, // Disegni non draggabili per ora
             };
 
-            switch(shapeData.type) {
+            switch (shapeData.type) {
                 case 'freehand':
                     shape = new Konva.Line({ ...commonAttrs, points: shapeData.points, tension: 0.5 });
                     break;
@@ -519,7 +524,23 @@
                 case 'circle':
                         shape = new Konva.Circle({ ...commonAttrs, x: shapeData.x, y: shapeData.y, radius: shapeData.radius });
                         break;
-                // Aggiungere 'line' se necessario
+                case 'text':
+                    shape = new Konva.Text({
+                        ...commonAttrs,
+                        x: shapeData.x,
+                        y: shapeData.y,
+                        text: shapeData.text,
+                        fontSize: shapeData.fontSize || 24,
+                        fill: shapeData.color || '#000000',
+                        draggable: true // Rendiamo il testo trascinabile
+                    });
+
+                    shape.on('dragend', () => {
+                        if (activeDrawingsRef) {
+                            activeDrawingsRef.child(shapeId).update({ x: shape.x(), y: shape.y() });
+                        }
+                    });
+                    break;
                 default:
                     console.warn("Tipo forma non riconosciuto:", shapeData.type);
                     return;
@@ -653,6 +674,22 @@
                 if (checkNome()) { // Solo se loggato
                     vttPingsRef.push({ x: pos.x, y: pos.y, timestamp: Date.now(), pinger: userName });
                 }
+            } else if (currentDrawingTool === 'text' && isGM) {
+                const textContent = prompt("Inserisci il testo da aggiungere:", "Testo");
+                if (textContent && activeDrawingsRef) {
+                    const textData = {
+                        type: 'text',
+                        x: pos.x,
+                        y: pos.y,
+                        text: textContent,
+                        color: drawingColorInput.value,
+                        fontSize: 24 // Puoi renderlo un input nell'UI
+                    };
+                    activeDrawingsRef.push(textData);
+                }
+                // Resetta lo strumento su 'select' dopo aver aggiunto il testo
+                document.querySelector('input[name="vtt-tool"][value="select"]').checked = true;
+                drawingToolRadios[0].dispatchEvent(new Event('change')); // Simula il click
             }
         });
 
@@ -1174,6 +1211,25 @@
         setTimeout(() => {
             window.dispatchEvent(new Event('resize'));
         }, 310); // 310ms (appena dopo la fine della transizione di 0.3s)
+    });
+
+    gmTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            gmTabButtons.forEach(btn => btn.classList.remove('active'));
+            gmTabPanes.forEach(pane => pane.classList.remove('active'));
+
+            button.classList.add('active');
+            const tabId = button.dataset.tab;
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    vttGmPanelBtn.addEventListener('click', () => {
+        gmPanelModal.classList.add('is-visible');
+    });
+
+    gmPanelCloseBtn.addEventListener('click', () => {
+        gmPanelModal.classList.remove('is-visible');
     });
 
     function startSceneListeners() {
@@ -2039,6 +2095,7 @@
                 case 'freehand':
                 case 'rect':
                 case 'circle':
+                case 'text':
                     if (isGM) { // Solo il GM disabilita il pan per disegnare
                         canDrag = false;
                         cursorStyle = 'crosshair';

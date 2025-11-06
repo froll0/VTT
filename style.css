@@ -1249,3 +1249,112 @@ body.is-gm #tab-btn-admin {
 #gm-request-modal.is-visible {
 	display: flex; 
 }
+
+#gm-panel-modal {
+	display: none; /* Nascosto di default */
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	background-color: rgba(0, 0, 0, 0.5); /* Sfondo scuro */
+	/* Centra il contenuto */
+	justify-content: center;
+	align-items: flex-start; /* Allinea in alto */
+	padding-top: 10vh; /* Spazio dall'alto */
+}
+
+#gm-panel-modal.is-visible {
+	display: flex; /* Mostra il modale */
+}
+
+#gm-panel-content {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 90%;
+	max-width: 500px;
+	max-height: 80vh; /* Altezza massima, 80% della vista */
+	background: var(--colore-sfondo-widget);
+	border: 1px solid var(--colore-bordo);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+}
+
+#gm-panel-content h3 {
+	padding: 12px 12px 0 12px;
+	margin-block-end: 0;
+}
+
+#gm-panel-close-btn {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	font-size: 1.2rem;
+	background: none;
+	border: none;
+	color: var(--colore-testo);
+	opacity: 0.7;
+}
+#gm-panel-close-btn:hover {
+	opacity: 1;
+	background: var(--colore-altri-messaggi);
+	transform: none;
+}
+
+#gm-panel-inner-content {
+	overflow-y: auto; /* Rende il contenuto scrollabile */
+	padding: 12px;
+}
+
+/* --- [NUOVO] Stili per Tab Pannello GM --- */
+#gm-panel-tabs {
+	display: flex;
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--colore-bordo);
+}
+
+.gm-tab-button {
+	flex-grow: 1;
+	background: none;
+	color: var(--colore-testo);
+	opacity: 0.6;
+	border-radius: 0;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px; /* Si sovrappone al bordo */
+}
+
+.gm-tab-button:hover {
+	opacity: 1;
+	background: var(--colore-sfondo-input);
+	transform: none;
+}
+
+.gm-tab-button.active {
+	color: var(--colore-primario);
+	border-bottom-color: var(--colore-primario);
+	opacity: 1;
+	font-weight: 600;
+}
+
+.gm-tab-pane {
+	display: none; /* Nascosto di default */
+	flex-direction: column;
+	gap: 12px;
+}
+.gm-tab-pane.active {
+	display: flex; /* Mostra il pane attivo */
+}
+
+/* Pulisce i VTT controls che ora sono nel modale */
+#gm-panel-inner-content .vtt-control-section {
+	display: flex; /* Assicura che siano visibili */
+}
+
+/* Stili per il nuovo blocco admin */
+#gm-admin-controls {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}

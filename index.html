@@ -32,7 +32,6 @@
                     <button class="tab-button active" data-tab="turn-order" title="Ordine di Turno"><i class="fa-solid fa-list-ol"></i></button>
                     <button class="tab-button" data-tab="notes" title="Note"><i class="fa-solid fa-note-sticky"></i></button>
                     <button class="tab-button" data-tab="macros" title="Macro Dadi"><i class="fa-solid fa-scroll"></i></button>
-                    <button class="tab-button gm-only" data-tab="vtt" id="tab-btn-vtt" title="VTT Tools"><i class="fa-solid fa-map"></i></button>
                     <button class="tab-button" data-tab="settings" title="Impostazioni"><i class="fa-solid fa-gear"></i></button>
                 </div>
                 
@@ -75,75 +74,7 @@
                     </div>
 
                     <div class="tab-pane" id="tab-vtt">
-                        <div class="vtt-controls-grid">
-                            <div class="vtt-control-section gm-only" id="vtt-drawing-options">
-                                <div class="input-group">
-                                    <label for="drawing-color">Colore</label>
-                                    <input type="color" id="drawing-color" value="#ff0000">
-                                    <label for="drawing-stroke-width">Spessore</label> <input type="number" id="drawing-stroke-width" value="2" min="1" max="20">
-                                </div>
-                                <button id="clear-drawings-btn" class="admin-button"><i class="fa-solid fa-eraser"></i> Cancella disegni</button>
-                            </div>
-
-                            <div class="vtt-control-section gm-only" id="vtt-scene-options">
-                                <h4>Gestione scene</h4>
-                                <div class="input-group">
-                                    <label for="scene-select">Scena attiva</label>
-                                    <select id="scene-select">
-                                        <option value="">-- Caricamento --</option>
-                                    </select>
-                                </div>
-                                <div class="button-group">
-                                    <button id="scene-activate-btn">Attiva</button>
-                                    <button id="scene-create-btn">Nuova</button>
-                                </div>
-                                <button id="scene-delete-btn" class="admin-button">Elimina scena attiva</button>
-                            </div>
-
-                            <div class="vtt-control-section gm-only" id="vtt-map-options">
-                                <h4>Mappa e griglia</h4>
-                                <div class="input-group">
-                                    <label for="vtt-map-url">URL mappa</label>
-                                    <input type="file" id="vtt-map-file-input" accept="image/png, image/jpeg, image/webp, image/gif">
-                                </div>
-                                <button id="vtt-set-map">Imposta mappa</button>
-                                <div class="input-group">
-                                    <label for="world-width">Larghezza</label>
-                                    <input type="number" id="world-width" value="4000" step="100">
-                                    <label for="world-height">Altezza</label>
-                                    <input type="number" id="world-height" value="3000" step="100">
-                                </div>
-                                <div class="input-group">
-                                    <label for="grid-scale">Scala</label>
-                                    <input type="number" id="grid-scale" value="1.5" step="0.1" min="0.1">
-                                    <label for="grid-unit">Unità</label>
-                                    <input type="text" id="grid-unit" value="m">
-                                </div>
-                                <button id="vtt-update-grid-btn">Imposta dimensioni e scala</button>
-                            </div>
-                            
-                            <div class="vtt-control-section gm-only" id="vtt-token-options">
-                                <h4>Token</h4>
-                                <div class="input-group">
-                                    <label for="vtt-token-name">Nome</label>
-                                    <input type="text" id="vtt-token-name" placeholder="Nome">
-                                </div>
-                                <div class="input-group">
-                                    <label for="vtt-token-url">URL immagine</label> <input type="url" id="vtt-token-url" placeholder="URL immagine (opz.)">
-                                </div>
-                                <div class="input-group">
-                                    <label for="vtt-token-color">Colore</label>
-                                    <input type="color" id="vtt-token-color" value="#ff0000">
-                                </div>
-                                <div class="input-group">
-                                    <label for="vtt-token-owner">Proprietario</label> <select id="vtt-token-owner">
-                                        <option value="">Master</option>
-                                    </select>
-                                </div>
-                                <button id="vtt-add-token">Aggiungi token</button>
-                                <small><i>Posiziona cliccando sulla mappa. Doppio click su token per eliminarlo.</i></small>
-                            </div>
-                        </div>
+                        
                     </div>
                     
                     <div class="tab-pane" id="tab-settings">
@@ -171,26 +102,6 @@
                         <div class="button-group full-width">
                             <button id="clear-local-btn" class="admin-button">Elimina i dati locali</button>
                         </div>
-                        <h4></h4>
-                        <div id="music-controls">
-                            <div class="input-group gm-only">
-                                <input type="url" id="music-url" placeholder="Incolla URL audio (mp3, wav, ogg)">
-                            </div>
-                            <div class="button-group-3">
-                                <button id="music-play" class="gm-only"><i class="fa-solid fa-play"></i></button>
-                                <button id="music-pause" class="gm-only"><i class="fa-solid fa-pause"></i></button>
-                                <button id="music-stop" class="gm-only"><i class="fa-solid fa-stop"></i></button>
-                            </div>
-                        </div>
-                        <div class="button-group full-width">
-                            <button id="delete-rolls-btn" class="admin-button gm-only">Elimina tutti i tiri</button>
-                        </div>
-                        <div class="button-group full-width">
-                            <button id="delete-texts-btn" class="admin-button gm-only">Elimina tutti i messaggi</button>
-                        </div>
-                        <div class="button-group full-width">
-                            <button id="abdicate-gm-btn" class="admin-button gm-only">Smetti di essere il Master</button>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -210,6 +121,10 @@
                     <label title="Misura Distanza">
                         <input type="radio" name="vtt-tool" value="ruler">
                         <span><i class="fa-solid fa-ruler"></i></span>
+                    </label>
+                    <label class="gm-only" title="Aggiungi Testo">
+                        <input type="radio" name="vtt-tool" value="text">
+                        <span><i class="fa-solid fa-font"></i></span>
                     </label>
                     <label title="Ping">
                         <input type="radio" name="vtt-tool" value="ping">
@@ -232,6 +147,7 @@
 
             <div id="vtt-view-controls">
                 <button id="vtt-toggle-sidebar" title="Mostra Sidebar"><i class="fa-solid fa-bars"></i></button>
+                <button id="vtt-gm-panel-btn" class="gm-only" title="Pannello Master"><i class="fa-solid fa-shield"></i></button>
                 <button id="vtt-zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
                 <button id="vtt-zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
                 <button id="vtt-center-view" title="Centra Vista"><i class="fa-solid fa-crosshairs"></i></button>
@@ -304,6 +220,117 @@
             <p>Accetti il trasferimento del ruolo?</p>
             <button id="gm-accept">Accetta</button>
             <button id="gm-refuse">Rifiuta</button>
+        </div>
+    </div>
+
+    <div id="gm-panel-modal" class="gm-only">
+        <div id="gm-panel-content">
+            <button id="gm-panel-close-btn" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+            <h3>Pannello del master</h3>
+
+            <div id="gm-panel-tabs">
+                <button class="gm-tab-button active" data-tab="gm-scena">Scena</button>
+                <button class="gm-tab-button" data-tab="gm-contenuti">Contenuti</button>
+                <button class="gm-tab-button" data-tab="gm-musica">Altro</button>
+            </div>
+
+            <div id="gm-panel-inner-content">
+                <div class="gm-tab-pane active" id="gm-scena">
+                    <div class="vtt-control-section gm-only" id="vtt-scene-options">
+                        <h4>Gestione scene</h4>
+                        <div class="input-group">
+                            <label for="scene-select">Scena attiva</label>
+                            <select id="scene-select">
+                                <option value="">-- Caricamento --</option>
+                            </select>
+                        </div>
+                        <div class="button-group">
+                            <button id="scene-activate-btn">Attiva</button>
+                            <button id="scene-create-btn">Nuova</button>
+                        </div>
+                        <button id="scene-delete-btn" class="admin-button">Elimina scena attiva</button>
+                    </div>
+
+                    <div class="vtt-control-section gm-only" id="vtt-map-options">
+                        <h4>Mappa e griglia</h4>
+                        <div class="input-group">
+                            <label for="vtt-map-url">URL mappa</label>
+                            <input type="file" id="vtt-map-file-input" accept="image/png, image/jpeg, image/webp, image/gif">
+                        </div>
+                        <button id="vtt-set-map">Imposta mappa</button>
+                        <div class="input-group">
+                            <label for="world-width">Larghezza</label>
+                            <input type="number" id="world-width" value="4000" step="100">
+                            <label for="world-height">Altezza</label>
+                            <input type="number" id="world-height" value="3000" step="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="grid-scale">Scala</label>
+                            <input type="number" id="grid-scale" value="1.5" step="0.1" min="0.1">
+                            <label for="grid-unit">Unità</label>
+                            <input type="text" id="grid-unit" value="m">
+                        </div>
+                        <button id="vtt-update-grid-btn">Imposta dimensioni e scala</button>
+                    </div>
+                </div>
+
+                <div class="gm-tab-pane" id="gm-contenuti">
+                    <div class="vtt-control-section gm-only" id="vtt-drawing-options">
+                        <div class="input-group">
+                            <label for="drawing-color">Colore</label>
+                            <input type="color" id="drawing-color" value="#ff0000">
+                            <label for="drawing-stroke-width">Spessore</label> <input type="number" id="drawing-stroke-width" value="2" min="1" max="20">
+                        </div>
+                        <button id="clear-drawings-btn" class="admin-button"><i class="fa-solid fa-eraser"></i> Cancella disegni</button>
+                    </div>
+                    
+                    <div class="vtt-control-section gm-only" id="vtt-token-options">
+                        <h4>Token</h4>
+                        <div class="input-group">
+                            <label for="vtt-token-name">Nome</label>
+                            <input type="text" id="vtt-token-name" placeholder="Nome">
+                        </div>
+                        <div class="input-group">
+                            <label for="vtt-token-url">URL immagine</label> <input type="url" id="vtt-token-url" placeholder="URL immagine (opz.)">
+                        </div>
+                        <div class="input-group">
+                            <label for="vtt-token-color">Colore</label>
+                            <input type="color" id="vtt-token-color" value="#ff0000">
+                        </div>
+                        <div class="input-group">
+                            <label for="vtt-token-owner">Proprietario</label> <select id="vtt-token-owner">
+                                <option value="">Master</option>
+                            </select>
+                        </div>
+                        <button id="vtt-add-token">Aggiungi token</button>
+                        <small><i>Posiziona cliccando sulla mappa. Doppio click su token per eliminarlo.</i></small>
+                    </div>
+                </div>
+
+                <div class="gm-tab-pane" id="gm-musica">
+                    <div id="music-controls">
+                        <h4>Musica</h4>
+                        <div class="input-group">
+                            <input type="url" id="music-url" placeholder="Incolla URL audio...">
+                        </div>
+                        <div class="button-group-3">
+                            <button id="music-play"><i class="fa-solid fa-play"></i></button>
+                            <button id="music-pause"><i class="fa-solid fa-pause"></i></button>
+                            <button id="music-stop"><i class="fa-solid fa-stop"></i></button>
+                        </div>
+                    </div>
+                    <div id="gm-admin-controls">
+                        <h4>Gestione dati</h4>
+                        <div class="button-group">
+                            <button id="delete-texts-btn" class="admin-button">Elimina tutti i messaggi</button>
+                            <button id="delete-rolls-btn" class="admin-button">Elimina tutt i tiri</button>
+                        </div>
+                        <div class="button-group full-width">
+                            <button id="abdicate-gm-btn" class="admin-button">Cedi il ruolo da Master</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
